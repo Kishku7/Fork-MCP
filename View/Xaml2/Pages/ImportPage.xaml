@@ -39,7 +39,7 @@
                             IconSource="pack://application:,,,/View/Resources/images/Icons/SpigotD.png"
                             HoverIconSource="pack://application:,,,/View/Resources/images/Icons/SpigotW.png"
                             Header="Spigot" GroupName="serverTypes" Margin="10 10"
-                            Click="ServerTypeSpigot_Click" />
+                            Click="ServerTypeSpigot_Click" Visibility="Collapsed" />
                         <controls:ServerTypeRadioButton
                             IconSource="pack://application:,,,/View/Resources/images/Icons/PaperD.png"
                             HoverIconSource="pack://application:,,,/View/Resources/images/Icons/PaperW.png"

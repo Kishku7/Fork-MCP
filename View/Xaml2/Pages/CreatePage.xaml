@@ -60,14 +60,14 @@
                                     HoverIconSource="pack://application:,,,/View/Resources/images/Icons/WaterfallW.png"
                                     Header="Waterfall" GroupName="createServerTypes" Margin="10 10"
                                     IsLoading="False"
-                                    Click="ServerTypeWaterfall_Click" />
+                                    Click="ServerTypeWaterfall_Click" Visibility="Collapsed" />
                                 <controls:ServerTypeRadioButton
                                     IconSource="pack://application:,,,/View/Resources/images/Icons/SpigotD.png"
                                     HoverIconSource="pack://application:,,,/View/Resources/images/Icons/SpigotW.png"
                                     Header="Spigot" GroupName="createServerTypes" Margin="10 10"
                                     IsLoading="{Binding SpigotVersionsLoading}"
                                     IsEnabled="{Binding SpigotVersionsLoading, Converter={StaticResource InvertBoolConverter}}"
-                                    Click="ServerTypeSpigot_Click" />
+                                    Click="ServerTypeSpigot_Click" Visibility="Collapsed" />
                                 <controls:ServerTypeRadioButton
                                     IconSource="pack://application:,,,/View/Resources/images/Icons/BukkitD.png"
                                     HoverIconSource="pack://application:,,,/View/Resources/images/Icons/BukkitW.png"
@@ -77,7 +77,7 @@
                                     HoverIconSource="pack://application:,,,/View/Resources/images/Icons/BungeeCordW.png"
                                     Header="BungeeCord" GroupName="createServerTypes" Margin="10 10"
                                     IsLoading="False"
-                                    Click="ServerTypeBungeeCord_Click" />
+                                    Click="ServerTypeBungeeCord_Click" Visibility="Collapsed" />
                                 <controls:ServerTypeRadioButton
                                     IconSource="pack://application:,,,/View/Resources/images/Icons/PurpurD.png"
                                     HoverIconSource="pack://application:,,,/View/Resources/images/Icons/PurpurW.png"
