@@ -60,10 +60,12 @@ public sealed class WebRequestManager
             ServerVersion serverVersion = new();
             serverVersion.Type = ServerVersion.VersionType.Paper;
             serverVersion.Version = version;
-            int latestBuild = await paperWebRequester.RequestLatestBuildId(version);
-            serverVersion.JarLink =
-                $"https://api.papermc.io/v2/projects/paper/versions/{version}/builds/{latestBuild}/downloads/paper-{version}-{latestBuild}.jar";
-            versions.Add(serverVersion);
+            string downloadUrl = await paperWebRequester.RequestDownloadUrlForLatestBuild(version);
+            if (downloadUrl != null)
+            {
+                serverVersion.JarLink = downloadUrl;
+                versions.Add(serverVersion);
+            }
         }
 
         return versions;

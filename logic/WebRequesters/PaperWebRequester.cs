@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Fork.Annotations;
 using Fork.Logic.Logging;
 using Fork.Logic.Manager;
 using Newtonsoft.Json;
@@ -14,7 +15,7 @@ public class PaperWebRequester
 {
     public List<string> RequestPaperVersions()
     {
-        string url = "https://api.papermc.io/v2/projects/paper";
+        string url = "https://fill.papermc.io/v3/projects/paper";
         string json = ResponseCache.Instance.UncacheResponse(url);
         if (json == null)
         {
@@ -25,7 +26,7 @@ public class PaperWebRequester
                 request.UserAgent = ApplicationManager.UserAgent;
                 using (WebResponse response = request.GetResponse())
                 using (Stream stream = response.GetResponseStream())
-                using (StreamReader reader = new(stream))
+                using (StreamReader reader = new(stream!))
                     json = reader.ReadToEnd();
 
                 ResponseCache.Instance.CacheResponse(url, json);
@@ -41,17 +42,17 @@ public class PaperWebRequester
 
         PaperVersions paperVersions = JsonConvert.DeserializeObject<PaperVersions>(json);
 
-        if (paperVersions == null || !paperVersions.project_id.Equals("paper"))
+        if (paperVersions == null || !paperVersions.project.id.Equals("paper"))
         {
             return null;
         }
 
-        return paperVersions.versions.Reverse().ToList();
+        return paperVersions.versions.SelectMany(v => v.Value).ToList();
     }
 
     public async Task<int> RequestLatestBuildId(string version)
     {
-        string url = "https://api.papermc.io/v2/projects/paper/versions/" + version;
+        string url = "https://fill.papermc.io/v3/projects/paper/versions/" + version;
         {
             try
             {
@@ -59,9 +60,9 @@ public class PaperWebRequester
                 request.UserAgent = ApplicationManager.UserAgent;
                 using WebResponse response = request.GetResponse();
                 await using Stream stream = response.GetResponseStream();
-                using StreamReader reader = new(stream);
+                using StreamReader reader = new(stream!);
                 string json = await reader.ReadToEndAsync();
-                PaperVersion obj = JsonConvert.DeserializeObject<PaperVersion>(json);
+                PaperVersionDetails obj = JsonConvert.DeserializeObject<PaperVersionDetails>(json);
                 ;
                 return obj.builds.LastOrDefault();
             }
@@ -74,20 +75,66 @@ public class PaperWebRequester
         }
     }
 
+    [ItemCanBeNull]
+    public async Task<string> RequestDownloadUrlForLatestBuild(string version)
+    {
+        string url = "https://fill.papermc.io/v3/projects/paper/versions/" + version + "/builds/latest";
+        try
+        {
+            HttpWebRequest request = WebRequest.CreateHttp(url);
+            request.UserAgent = ApplicationManager.UserAgent;
+            using WebResponse response = request.GetResponse();
+            await using Stream stream = response.GetResponseStream();
+            using StreamReader reader = new(stream!);
+            string json = await reader.ReadToEndAsync();
+            PaperVersionBuildInformation obj = JsonConvert.DeserializeObject<PaperVersionBuildInformation>(json);
+            return obj.downloads["server:default"].url;
+        }
+        catch (Exception e)
+        {
+            ErrorLogger.Append(e);
+            Console.WriteLine("Could not get download url for latest build id for paper version " + version);
+            return null;
+        }
+    }
+
 
     private class PaperVersions
     {
-        public string project_id;
-        public string project_name;
-        public string[] version_groups;
-        public string[] versions;
+        public PaperProject project;
+        public Dictionary<string, string[]> versions;
+
+        internal class PaperProject
+        {
+            public string id;
+            public string name;
+        }
     }
 
-    private class PaperVersion
+    private class PaperVersionDetails
     {
+        public PaperVersionDetailsVersion version;
         public int[] builds;
-        public string project_id;
-        public string project_name;
-        public string version;
+
+        internal class PaperVersionDetailsVersion
+        {
+            public string id;
+            // More properties like minimum java version and recommended jvm flags would be available here
+        }
+    }
+
+    private class PaperVersionBuildInformation
+    {
+        public string id;
+        public DateTime time;
+        public string channel;
+        public Dictionary<string, PaperVersionBuildInformationDownloadInfo> downloads;
+
+        internal class PaperVersionBuildInformationDownloadInfo
+        {
+            public string name;
+            public long size;
+            public string url;
+        }
     }
 }
