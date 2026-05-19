@@ -6,7 +6,7 @@
         <UseWPF>true</UseWPF>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <UseWindowsForms>true</UseWindowsForms>
-        <Version>0.8.10</Version>
+        <Version>1.0.0</Version>
         <StartupObject>Fork.App</StartupObject>
         <ApplicationIcon>icon.ico</ApplicationIcon>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
