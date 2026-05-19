@@ -15,4 +15,17 @@ public class AppSettings
     public bool RichPresence { get; set; } = true;
     public bool SendTelemetry { get; set; } = false;
     public SystemTrayOptions SystemTrayOptions { get; set; } = SystemTrayOptions.None;
+
+    // ── MCP Server ────────────────────────────────────────────────────────────
+    /// <summary>Enable the built-in MCP server. Defaults to true.</summary>
+    public bool McpEnabled { get; set; } = true;
+    /// <summary>IP address for the MCP server to bind to. 0.0.0.0 = all interfaces.</summary>
+    public string McpIp { get; set; } = "0.0.0.0";
+    /// <summary>Port for the MCP server. Default 19475.</summary>
+    public int McpPort { get; set; } = 19475;
+    /// <summary>
+    /// When non-null, MCP requests must supply this value as a Bearer token.
+    /// Null = no authentication (default). Set via the Fork settings UI or AppSettings.json.
+    /// </summary>
+    public string? McpAuthToken { get; set; } = null;
 }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -109,8 +109,6 @@
         <None Remove="View\Resources\images\Splash.png"/>
         <None Remove="View\Resources\images\title.png"/>
         <None Remove="View\Resources\images\vanillaSymbol.png"/>
-        <None Remove="View\Resources\SyntaxHighlighting\Python.xshd"/>
-        <None Remove="View\Resources\SyntaxHighlighting\YAML.xshd"/>
         <Resource Include="icon.ico">
             <Pack>True</Pack>
             <PackagePath></PackagePath>
@@ -139,11 +137,17 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0"/>
+        <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
+        <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
         <PackageReference Include="PropertyChanged.Fody" Version="4.1.0"/>
         <PackageReference Include="SharpZipLib" Version="1.4.2"/>
         <PackageReference Include="Websocket.Client" Version="5.0.0"/>
         <PackageReference Include="YamlDotNet" Version="13.7.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
 
     <ItemGroup>

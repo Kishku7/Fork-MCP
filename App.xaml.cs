@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -7,6 +7,7 @@ using System.Windows;
 using Fork.Logic.ApplicationConsole;
 using Fork.Logic.Logging;
 using Fork.Logic.Manager;
+using Fork.Logic.Mcp;
 using Fork.Logic.Persistence;
 using Microsoft.Win32.SafeHandles;
 
@@ -18,6 +19,7 @@ namespace Fork;
 public partial class App : Application
 {
     private static string applicationPath;
+    private McpHost _mcpHost = new();
 
     public static string ApplicationPath
     {
@@ -48,11 +50,13 @@ public partial class App : Application
             Console.SetOut(ApplicationManager.ConsoleWriter);
 #endif
         ErrorLogger logger = new();
+        _ = _mcpHost.StartAsync();
         base.OnStartup(e);
     }
 
     private void ExitApplication(object sender, ExitEventArgs exitEventArgs)
     {
+        _mcpHost.StopAsync().Wait(TimeSpan.FromSeconds(5));
         ApplicationManager.Instance.ExitApplication();
     }
 #if DEBUG
