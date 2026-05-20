@@ -7,3 +7,5 @@ UpgradeLog.htm
 NihilusInstaller
 *.user
 Properties/PublishProfiles
+
+scripts/git_push.py
