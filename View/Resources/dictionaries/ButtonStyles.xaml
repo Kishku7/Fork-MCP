@@ -99,6 +99,27 @@
         </Setter>
     </Style>
 
+    <Style x:Key="RoundedTextButtonGreen" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{DynamicResource buttonBgrGreen}" Height="35" CornerRadius="5">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontFamily="{DynamicResource Montserrat-Bold}"
+                                   Text="{TemplateBinding Content}" Foreground="{DynamicResource backgroundDefault}"
+                                   FontSize="17"
+                                   x:Name="text" Margin="10 0" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="text" Property="Foreground" Value="{DynamicResource textSelected}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="BecomeSupporterBtn" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
         <Setter Property="Template">
             <Setter.Value>
@@ -198,6 +219,72 @@
 
     <Style x:Key="RestartIconButton" TargetType="controls:IconButton"
            BasedOn="{StaticResource {x:Type controls:IconButton}}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding CurrentStatus}" Value="{x:Static model:ServerStatus.RUNNING}">
+                <Setter Property="Visibility" Value="Visible" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding CurrentStatus}" Value="{x:Static model:ServerStatus.STARTING}">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding CurrentStatus}" Value="{x:Static model:ServerStatus.STOPPED}">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+
+    <!-- StartStop labeled text button — green=Start, red=Stop, driven by CurrentStatus -->
+    <Style x:Key="StartStopTextButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border" Background="{DynamicResource buttonBgrGreen}" Height="35" CornerRadius="5">
+                        <TextBlock x:Name="text" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontFamily="{DynamicResource Montserrat-Bold}"
+                                   Text="Start" Foreground="{DynamicResource backgroundDefault}"
+                                   FontSize="17" Margin="10 0" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding CurrentStatus}" Value="{x:Static model:ServerStatus.RUNNING}">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource buttonBgrRed}" />
+                            <Setter TargetName="text" Property="Text" Value="Stop" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding CurrentStatus}" Value="{x:Static model:ServerStatus.STARTING}">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource buttonBgrRed}" />
+                            <Setter TargetName="text" Property="Text" Value="Stop" />
+                        </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="text" Property="Foreground" Value="{DynamicResource textSelected}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Restart labeled text button — yellow, only visible when server is RUNNING -->
+    <Style x:Key="RestartTextButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{DynamicResource buttonBgrYellow}" Height="35" CornerRadius="5">
+                        <TextBlock x:Name="text" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontFamily="{DynamicResource Montserrat-Bold}"
+                                   Text="Restart" Foreground="{DynamicResource backgroundDefault}"
+                                   FontSize="17" Margin="10 0" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="text" Property="Foreground" Value="{DynamicResource textSelected}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
             <DataTrigger Binding="{Binding CurrentStatus}" Value="{x:Static model:ServerStatus.RUNNING}">
                 <Setter Property="Visibility" Value="Visible" />

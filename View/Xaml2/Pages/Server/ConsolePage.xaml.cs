@@ -1,7 +1,9 @@
-﻿using System.Windows;
+﻿using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Fork.Logic.Manager;
+using Fork.Logic.Model;
 using Fork.ViewModel;
 
 namespace Fork.View.Xaml2.Pages.Server;
@@ -114,6 +116,29 @@ public partial class ConsolePage : Page
         SearchBox.Visibility = SearchBox.Visibility == Visibility.Collapsed ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private async void ButtonStartStop_Click(object sender, RoutedEventArgs e)
+    {
+        StartStopButton.IsEnabled = false;
+        if (viewModel.CurrentStatus == ServerStatus.STOPPED)
+        {
+            await ServerManager.Instance.StartServerAsync(viewModel);
+        }
+        else if (viewModel.CurrentStatus == ServerStatus.STARTING)
+        {
+            await Task.Run(() => ServerManager.Instance.KillEntity(viewModel));
+        }
+        else if (viewModel.CurrentStatus == ServerStatus.RUNNING)
+        {
+            await Task.Run(() => ServerManager.Instance.StopServer(viewModel));
+        }
+        StartStopButton.IsEnabled = true;
+    }
+
+    private void RestartButton_Click(object sender, RoutedEventArgs e)
+    {
+        ServerManager.Instance.RestartServerAsync(viewModel);
+    }
+
     #region autoscrolling
 
     /// <summary>
@@ -123,30 +148,31 @@ public partial class ConsolePage : Page
 
     private void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
     {
-        ScrollViewer scrollViewer = sender as ScrollViewer;
+        // ScrollChanged is registered as an attached event on the ListBox so it catches
+        // events bubbling up from the ScrollViewer inside the ConsoleListBox template.
+        // e.OriginalSource is always the ScrollViewer that actually fired the event.
+        if (e.OriginalSource is not ScrollViewer scrollViewer) return;
+
         // User scroll event : set or unset auto-scroll mode
         if (e.ExtentHeightChange == 0)
         {
-            // Content unchanged : uSelectPlayerList
+            // Content unchanged — user scrolled manually
             if (scrollViewer.VerticalOffset == scrollViewer.ScrollableHeight)
             {
-                // Scroll bar is in bottom
-                // Set auto-scroll mode
+                // Scroll bar is at bottom — re-enable auto-scroll
                 AutoScroll = true;
             }
             else
             {
-                // Scroll bar isn't in bottom
-                // Unset auto-scroll mode
+                // Scroll bar is not at bottom — user scrolled up, disable auto-scroll
                 AutoScroll = false;
             }
         }
 
-        // Content scroll event : auto-scroll eventually
+        // Content scroll event : auto-scroll if enabled
         if (AutoScroll && e.ExtentHeightChange != 0)
         {
-            // Content changed and auto-scroll mode set
-            // Autoscroll
+            // New content arrived and auto-scroll is on — scroll to bottom
             scrollViewer.ScrollToVerticalOffset(scrollViewer.ExtentHeight);
         }
     }

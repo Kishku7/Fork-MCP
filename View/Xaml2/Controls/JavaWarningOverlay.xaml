@@ -1,0 +1,55 @@
+<UserControl x:Class="Fork.View.Xaml2.Controls.JavaWarningOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+    <Grid>
+        <Rectangle Fill="#1F2234" Opacity="0.95" Margin="-5 0 0 0" />
+        <StackPanel Panel.ZIndex="1" VerticalAlignment="Center">
+            <TextBlock Text="Java Version Warning" FontSize="28" FontFamily="{DynamicResource Montserrat-Bold}"
+                       TextAlignment="Center" Foreground="{DynamicResource buttonBgrRed}" Margin="0 0 0 20" />
+            <TextBlock Text="{Binding JavaWarningMessage}" Margin="0 0 0 5" TextAlignment="Center"
+                       FontSize="17" HorizontalAlignment="Center" Foreground="#f28c8c" LineHeight="28"
+                       FontFamily="{DynamicResource Montserrat-SemiBold}" />
+            <TextBlock Text="Please download and install Java by using one of the following links:"
+                       Margin="0 10 0 5" TextAlignment="Center"
+                       FontSize="17" HorizontalAlignment="Center" Foreground="{DynamicResource textSelected}"
+                       LineHeight="28"
+                       FontFamily="{DynamicResource Montserrat-SemiBold}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 0 0 -5">
+                <TextBlock Text="Oracle: " Margin="0 0 0 5" FontSize="15"
+                           Foreground="{DynamicResource textSelected}" LineHeight="28"
+                           FontFamily="{DynamicResource Montserrat-SemiBold}" />
+                <TextBlock Text="https://www.oracle.com/java/technologies/downloads/"
+                           FontSize="15"
+                           FontFamily="{DynamicResource Montserrat-SemiBold}" Cursor="Hand"
+                           PreviewMouseLeftButtonDown="TextBlock_Link_MouseDown" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Corretto: " Margin="0 0 0 5" FontSize="15"
+                           Foreground="{DynamicResource textSelected}" LineHeight="28"
+                           FontFamily="{DynamicResource Montserrat-SemiBold}" />
+                <TextBlock Text="https://corretto.aws/downloads/latest/amazon-corretto-21-x64-windows-jdk.msi"
+                           FontSize="15"
+                           FontFamily="{DynamicResource Montserrat-SemiBold}" Cursor="Hand"
+                           PreviewMouseLeftButtonDown="TextBlock_Link_MouseDown" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Microsoft: " Margin="0 0 0 5" FontSize="15"
+                           Foreground="{DynamicResource textSelected}" LineHeight="28"
+                           FontFamily="{DynamicResource Montserrat-SemiBold}" />
+                <TextBlock Text="https://aka.ms/download-jdk/microsoft-jdk-21.0.2-windows-x64.msi"
+                           FontSize="15"
+                           FontFamily="{DynamicResource Montserrat-SemiBold}" Cursor="Hand"
+                           PreviewMouseLeftButtonDown="TextBlock_Link_MouseDown" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 5 0 30">
+                <Button Content="Ignore" Style="{DynamicResource RoundedTextButtonRed}"
+                        Width="100" Margin="20" Click="Ignore_Click" />
+                <Button Content="Check again" Style="{DynamicResource RoundedTextButton}"
+                        MinWidth="100" Margin="20" Click="CheckAgain_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -21,13 +21,12 @@ public class SendCommandTool
         if (vm.CurrentStatus != ServerStatus.RUNNING)
             return $"'{serverName}' is not running (status: {vm.CurrentStatus}). Start it first.";
 
-        var active = ApplicationManager.Instance.ActiveEntities;
-        if (!active.TryGetValue(vm.Server, out var process))
-            return $"No active process found for '{serverName}'. The server may still be starting.";
+        if (vm.ConsoleReader is null)
+            return $"No console reader for '{serverName}'. The server may still be starting.";
 
         try
         {
-            process.StandardInput.WriteLine(command);
+            vm.ConsoleReader.Read(command, vm);
             return $"Command sent: {command}";
         }
         catch (Exception ex)

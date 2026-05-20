@@ -35,7 +35,7 @@ public class APIController
         return new WebClient().DownloadString("http://icanhazip.com").Trim();
     }
 
-    public ForkVersion GetLatestForkVersion(bool useBeta)
+    public ForkVersion GetLatestForkVersion()
     {
         if (!IsAPIAvailable())
         {
@@ -45,14 +45,7 @@ public class APIController
 
         try
         {
-            Dictionary<string, string> headers = null;
-            if (useBeta)
-            {
-                headers = new Dictionary<string, string>();
-                headers.Add("include-beta", "true");
-            }
-
-            HttpWebResponse response = RequestRawResponse(apiBaseURL + "versions/fork/latest", headers);
+            HttpWebResponse response = RequestRawResponse(apiBaseURL + "versions/fork/latest");
             string versionJson = RetrieveResponseBody(response);
             return JsonConvert.DeserializeObject<ForkVersion>(versionJson);
         }

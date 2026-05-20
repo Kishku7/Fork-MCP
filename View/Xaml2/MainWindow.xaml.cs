@@ -1,19 +1,13 @@
-﻿using System;
-using System.ComponentModel;
-using System.Drawing;
+using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Fork.Logic.Manager;
 using Fork.Logic.Model;
-using Fork.Logic.Persistence;
 using Fork.logic.Utils;
 using Fork.ViewModel;
 using Application = System.Windows.Application;
-using Brush = System.Windows.Media.Brush;
 
 namespace Fork.View.Xaml2;
 
@@ -22,7 +16,6 @@ public partial class MainWindow : Window
     private bool createOpen;
     private bool importOpen;
     private object lastSelected;
-    private NotifyIcon systemTrayIcon;
     private readonly MainViewModel viewModel;
 
     public MainWindow()
@@ -52,6 +45,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ImportServer_Click(object sender, RoutedEventArgs e)
+    {
+        if (ImportPage.Visibility == Visibility.Hidden)
+        {
+            OpenImportServer();
+        }
+        else
+        {
+            CloseImportServer();
+        }
+    }
+
     private void DeleteOpen_Click(object sender, RoutedEventArgs e)
     {
         if (viewModel.SelectedEntity is ServerViewModel)
@@ -66,7 +71,8 @@ public partial class MainWindow : Window
 
     private void RenameOpen_Click(object sender, RoutedEventArgs e)
     {
-        NewServerName.Text = viewModel.SelectedEntity.Name;
+        RenameServerOverlay.InputText = viewModel.SelectedEntity.Name;
+        RenameNetworkOverlay.InputText = viewModel.SelectedEntity.Name;
         if (viewModel.SelectedEntity is ServerViewModel)
         {
             RenameServerOverlay.Visibility = Visibility.Visible;
@@ -83,7 +89,8 @@ public partial class MainWindow : Window
         {
             if (serverViewModel.CurrentStatus == ServerStatus.STOPPED)
             {
-                Clone_Click(sender, e);
+                CloneServer_Confirmed(sender, e);
+                return;
             }
 
             CloneServerOverlay.Visibility = Visibility.Visible;
@@ -92,22 +99,11 @@ public partial class MainWindow : Window
         {
             if (networkViewModel.CurrentStatus == ServerStatus.STOPPED)
             {
-                Clone_Click(sender, e);
+                CloneNetwork_Confirmed(sender, e);
+                return;
             }
 
             CloneNetworkOverlay.Visibility = Visibility.Visible;
-        }
-    }
-
-    private void ImportServer_Click(object sender, RoutedEventArgs e)
-    {
-        if (ImportPage.Visibility == Visibility.Hidden)
-        {
-            OpenImportServer();
-        }
-        else
-        {
-            CloseImportServer();
         }
     }
 
@@ -121,56 +117,6 @@ public partial class MainWindow : Window
     {
         string url = "https://ko-fi.com/forkgg";
         ForkUtils.OpenUrl(url);
-    }
-
-    private void InitializeSystemTrayNotifyIcon()
-    {
-        systemTrayIcon = new NotifyIcon();
-        systemTrayIcon.Icon =
-            new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/icon.ico")).Stream);
-        systemTrayIcon.Visible = false;
-        systemTrayIcon.DoubleClick += delegate { ShowApplication(); };
-        systemTrayIcon.Text = "Fork";
-
-        ContextMenuStrip contextMenuStrip = new();
-        contextMenuStrip.Items.Add("Open", null, delegate { ShowApplication(); });
-        contextMenuStrip.Items.Add("Close", null, delegate { Application.Current.Shutdown(); });
-
-        systemTrayIcon.ContextMenuStrip = contextMenuStrip;
-    }
-
-    private void ShowApplication()
-    {
-        Show();
-        WindowState = WindowState.Normal;
-        systemTrayIcon.Visible = false;
-    }
-
-    private void OnMainWindowClose(object sender, CancelEventArgs e)
-    {
-        if (AppSettingsSerializer.Instance.AppSettings.SystemTrayOptions == SystemTrayOptions.WhenClose ||
-            AppSettingsSerializer.Instance.AppSettings.SystemTrayOptions ==
-            SystemTrayOptions.WhenMinimizeOrClose)
-        {
-            e.Cancel = true;
-            Hide();
-            systemTrayIcon.Visible = true;
-            return;
-        }
-
-        Application.Current.Shutdown();
-    }
-
-    private void OnMainWindowStateChange(object sender, EventArgs e)
-    {
-        if (WindowState == WindowState.Minimized &&
-            (AppSettingsSerializer.Instance.AppSettings.SystemTrayOptions == SystemTrayOptions.WhenMinimize ||
-             AppSettingsSerializer.Instance.AppSettings.SystemTrayOptions ==
-             SystemTrayOptions.WhenMinimizeOrClose))
-        {
-            Hide();
-            systemTrayIcon.Visible = true;
-        }
     }
 
     private void OpenCreateServer()
@@ -190,15 +136,8 @@ public partial class MainWindow : Window
         //Change Buttons
         DeleteButton.IsEnabled = false;
         ImportButton.IsEnabled = false;
-
-        CreateButton.Background = (Brush)Application.Current.FindResource("buttonBgrRed");
-        CreateButton.HoverBackground = (Brush)Application.Current.FindResource("buttonBgrRed");
-        CreateButton.IconSource =
-            new BitmapImage(new Uri(@"pack://application:,,,/View/Resources/images/Icons/Cancel.png",
-                UriKind.Absolute));
-        CreateButton.HoverIconSource =
-            new BitmapImage(
-                new Uri(@"pack://application:,,,/View/Resources/images/Icons/CancelW.png", UriKind.Absolute));
+        CreateButton.Content = "Cancel";
+        CreateButton.Style = (Style)Application.Current.FindResource("RoundedTextButtonRed");
         createOpen = true;
     }
 
@@ -223,13 +162,8 @@ public partial class MainWindow : Window
         //Change Buttons
         DeleteButton.IsEnabled = true;
         ImportButton.IsEnabled = true;
-
-        CreateButton.Background = (Brush)Application.Current.FindResource("buttonBgrDefault");
-        CreateButton.HoverBackground = (Brush)Application.Current.FindResource("buttonBgrGreen");
-        CreateButton.IconSource =
-            new BitmapImage(new Uri("pack://application:,,,/View/Resources/images/Icons/Create.png"));
-        CreateButton.HoverIconSource =
-            new BitmapImage(new Uri("pack://application:,,,/View/Resources/images/Icons/CreateW.png"));
+        CreateButton.Content = "New Server";
+        CreateButton.Style = (Style)Application.Current.FindResource("RoundedTextButtonGreen");
     }
 
     private void OpenImportServer()
@@ -248,27 +182,9 @@ public partial class MainWindow : Window
 
         //Change Buttons
         DeleteButton.IsEnabled = false;
-
         CreateButton.IsEnabled = false;
-
-        ImportButton.Background = (Brush)Application.Current.FindResource("buttonBgrRed");
-        ImportButton.HoverBackground = (Brush)Application.Current.FindResource("buttonBgrRed");
-        ImportButton.IconSource =
-            new BitmapImage(new Uri(@"pack://application:,,,/View/Resources/images/Icons/Cancel.png",
-                UriKind.Absolute));
-        ImportButton.HoverIconSource =
-            new BitmapImage(
-                new Uri(@"pack://application:,,,/View/Resources/images/Icons/CancelW.png", UriKind.Absolute));
-
-        ImportButton.Height = CreateButton.Height;
-        ImportButton.IconHeight = CreateButton.IconHeight;
-        ImportButton.Width = CreateButton.Width;
-        ImportButton.IconWidth = CreateButton.IconWidth;
-        CreateButton.Height = DeleteButton.Height;
-        CreateButton.IconHeight = DeleteButton.IconHeight * 1.2;
-        CreateButton.Width = DeleteButton.Width;
-        CreateButton.IconWidth = DeleteButton.IconWidth * 1.2;
-
+        ImportButton.Content = "Cancel";
+        ImportButton.Style = (Style)Application.Current.FindResource("RoundedTextButtonRed");
         importOpen = true;
     }
 
@@ -294,22 +210,8 @@ public partial class MainWindow : Window
         //Change Buttons
         DeleteButton.IsEnabled = true;
         CreateButton.IsEnabled = true;
-
-        ImportButton.Background = (Brush)Application.Current.FindResource("buttonBgrDefault");
-        ImportButton.HoverBackground = (Brush)Application.Current.FindResource("buttonBgrBlue");
-        ImportButton.IconSource =
-            new BitmapImage(new Uri("pack://application:,,,/View/Resources/images/Icons/Import.png"));
-        ImportButton.HoverIconSource =
-            new BitmapImage(new Uri("pack://application:,,,/View/Resources/images/Icons/ImportW.png"));
-
-        CreateButton.Height = ImportButton.Height;
-        CreateButton.IconHeight = ImportButton.IconHeight;
-        CreateButton.Width = ImportButton.Width;
-        CreateButton.IconWidth = ImportButton.IconWidth;
-        ImportButton.Height = DeleteButton.Height;
-        ImportButton.IconHeight = DeleteButton.IconHeight;
-        ImportButton.Width = DeleteButton.Width;
-        ImportButton.IconWidth = DeleteButton.IconWidth;
+        ImportButton.Content = "Import Server";
+        ImportButton.Style = (Style)Application.Current.FindResource("RoundedTextButton");
     }
 
     private void OpenAppSettings()
@@ -317,7 +219,6 @@ public partial class MainWindow : Window
         CloseNonEntityPages();
         lastSelected = ServerList.SelectedItem;
         ServerList.UnselectAll();
-
 
         //TODO make loading icon or smth
         viewModel.AppSettingsViewModel.OpenAppSettingsPage();
@@ -328,7 +229,6 @@ public partial class MainWindow : Window
 
         //Change Buttons
         AppSettingsButton.IsEnabled = false;
-        AppSettingsButton.Background = (Brush)Application.Current.FindResource("tabSelected");
     }
 
     private void CloseAppSettings()
@@ -348,7 +248,6 @@ public partial class MainWindow : Window
 
         //Change Buttons
         AppSettingsButton.IsEnabled = true;
-        AppSettingsButton.Background = (Brush)Application.Current.FindResource("buttonBgrDefault");
     }
 
     private void ServerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -379,7 +278,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Abort_Click(object sender, RoutedEventArgs e)
+    // ConfirmationOverlay cancel — dismisses whichever overlay is visible
+    private void Overlay_Cancelled(object sender, RoutedEventArgs e)
     {
         DeleteServerOverlay.Visibility = Visibility.Collapsed;
         DeleteNetworkOverlay.Visibility = Visibility.Collapsed;
@@ -389,186 +289,164 @@ public partial class MainWindow : Window
         CloneNetworkOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private async void Rename_Click(object sender, RoutedEventArgs e)
+    private async void RenameServer_Confirmed(object sender, RoutedEventArgs e)
     {
-        string newName;
-        if (viewModel.SelectedEntity is ServerViewModel serverViewModel)
+        if (viewModel.SelectedEntity is not ServerViewModel serverViewModel)
         {
-            ServerRenameBtn.IsEnabled = false;
-            ServerRenameCancelBtn.IsEnabled = false;
-            newName = NewServerName.Text;
-            //TODO name verifier instead of this
-            if (newName.Equals(""))
-            {
-                newName = "ForkEntity";
-            }
-
-            bool success = await ServerManager.Instance.RenameServerAsync(serverViewModel, newName);
-            if (success)
-            {
-                Console.WriteLine("Successfully renamed Server to: " + newName);
-            }
-            else
-            {
-                //TODO Show error
-                Console.WriteLine("Error renaming Server: " + serverViewModel.Name);
-            }
-
-            ServerRenameBtn.IsEnabled = true;
-            ServerRenameCancelBtn.IsEnabled = true;
+            return;
         }
-        else if (viewModel.SelectedEntity is NetworkViewModel networkViewModel)
+
+        RenameServerOverlay.IsConfirmEnabled = false;
+        string newName = RenameServerOverlay.InputText;
+        //TODO name verifier instead of this
+        if (newName.Equals(""))
         {
-            NetworkRenameBtn.IsEnabled = false;
-            NetworkRenameCancelBtn.IsEnabled = false;
-            newName = NewNetworkName.Text;
-            //TODO name verifier instead of this
-            if (newName.Equals(""))
-            {
-                newName = "ForkEntity";
-            }
+            newName = "ForkEntity";
+        }
 
-            bool success = await ServerManager.Instance.RenameNetworkAsync(networkViewModel, newName);
-            if (success)
-            {
-                Console.WriteLine("Successfully renamed Network to: " + newName);
-            }
-            else
-            {
-                //TODO Show error
-                Console.WriteLine("Error renaming Network: " + networkViewModel.Name);
-            }
-
-            NetworkRenameBtn.IsEnabled = true;
-            NetworkRenameCancelBtn.IsEnabled = true;
+        bool success = await ServerManager.Instance.RenameServerAsync(serverViewModel, newName);
+        if (success)
+        {
+            Console.WriteLine("Successfully renamed Server to: " + newName);
         }
         else
         {
-            throw new NotImplementedException("Rename does not support this type of entity: " + viewModel.GetType());
+            //TODO Show error
+            Console.WriteLine("Error renaming Server: " + serverViewModel.Name);
         }
 
-        Abort_Click(this, e);
+        RenameServerOverlay.IsConfirmEnabled = true;
+        RenameServerOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private async void Clone_Click(object sender, RoutedEventArgs e)
+    private async void RenameNetwork_Confirmed(object sender, RoutedEventArgs e)
     {
-        if (viewModel.SelectedEntity is ServerViewModel serverViewModel)
+        if (viewModel.SelectedEntity is not NetworkViewModel networkViewModel)
         {
-            ServerCloneBtn.IsEnabled = false;
-            ServerCloneCancelBtn.IsEnabled = false;
-
-            bool success = await ServerManager.Instance.CloneServerAsync(serverViewModel);
-            if (success)
-            {
-                Console.WriteLine("Successfully cloned Server:" + serverViewModel.Name);
-            }
-            else
-            {
-                //TODO Show error
-                Console.WriteLine("Error cloning Server: " + serverViewModel.Name);
-            }
-
-            ServerCloneBtn.IsEnabled = true;
-            ServerCloneCancelBtn.IsEnabled = true;
+            return;
         }
-        else if (viewModel.SelectedEntity is NetworkViewModel networkViewModel)
+
+        RenameNetworkOverlay.IsConfirmEnabled = false;
+        string newName = RenameNetworkOverlay.InputText;
+        //TODO name verifier instead of this
+        if (newName.Equals(""))
         {
-            NetworkCloneBtn.IsEnabled = false;
-            NetworkCloneCancelBtn.IsEnabled = false;
+            newName = "ForkEntity";
+        }
 
-            bool success = await ServerManager.Instance.CloneNetworkAsync(networkViewModel);
-            if (success)
-            {
-                Console.WriteLine("Successfully renamed Network to: " + networkViewModel.Name);
-            }
-            else
-            {
-                //TODO Show error
-                Console.WriteLine("Error renaming Network: " + networkViewModel.Name);
-            }
-
-            NetworkCloneBtn.IsEnabled = true;
-            NetworkCloneCancelBtn.IsEnabled = true;
+        bool success = await ServerManager.Instance.RenameNetworkAsync(networkViewModel, newName);
+        if (success)
+        {
+            Console.WriteLine("Successfully renamed Network to: " + newName);
         }
         else
         {
-            throw new NotImplementedException("Rename does not support this type of entity: " + viewModel.GetType());
+            //TODO Show error
+            Console.WriteLine("Error renaming Network: " + networkViewModel.Name);
         }
 
-        Abort_Click(this, e);
+        RenameNetworkOverlay.IsConfirmEnabled = true;
+        RenameNetworkOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private async void Delete_Click(object sender, RoutedEventArgs e)
+    private async void CloneServer_Confirmed(object sender, RoutedEventArgs e)
     {
-        EntityViewModel entityToDelete = viewModel.SelectedEntity;
-        if (entityToDelete is ServerViewModel serverToDelete)
+        if (viewModel.SelectedEntity is not ServerViewModel serverViewModel)
         {
-            ServerDeleteCancelBtn.IsEnabled = false;
-            ServerDeleteBtn.IsEnabled = false;
-            ServerDeleteBtn.Content = "Deleting...";
-
-            bool success = await ServerManager.Instance.DeleteServerAsync(serverToDelete);
-            if (!success)
-            {
-                Console.WriteLine("Problem while deleting " + serverToDelete);
-            }
-            else
-            {
-                Console.WriteLine("Successfully deleted server " + serverToDelete);
-                Application.Current.Dispatcher?.Invoke(() => viewModel.Entities.Remove(serverToDelete),
-                    DispatcherPriority.Background); //This shouldn't be here
-                ServerList.SelectedIndex = 0;
-            }
-
-            ServerDeleteCancelBtn.IsEnabled = true;
-            ServerDeleteBtn.IsEnabled = true;
-            ServerDeleteBtn.Content = "Delete";
-        }
-        else if (entityToDelete is NetworkViewModel networkToDelete)
-        {
-            NetworkDeleteCancelBtn.IsEnabled = false;
-            NetworkDeleteBtn.IsEnabled = false;
-            NetworkDeleteBtn.Content = "Deleting...";
-
-            bool success = await ServerManager.Instance.DeleteNetworkAsync(networkToDelete);
-            if (!success)
-            {
-                Console.WriteLine("Problem while deleting " + networkToDelete.Network);
-            }
-            else
-            {
-                Console.WriteLine("Successfully deleted network " + networkToDelete.Network);
-                Application.Current.Dispatcher?.Invoke(() => viewModel.Entities.Remove(networkToDelete),
-                    DispatcherPriority.Background); //This shouldn't be here
-                ServerList.SelectedIndex = 0;
-            }
-
-            NetworkDeleteCancelBtn.IsEnabled = true;
-            NetworkDeleteBtn.IsEnabled = true;
-            NetworkDeleteBtn.Content = "Delete";
+            return;
         }
 
+        CloneServerOverlay.IsConfirmEnabled = false;
+
+        bool success = await ServerManager.Instance.CloneServerAsync(serverViewModel);
+        if (success)
+        {
+            Console.WriteLine("Successfully cloned Server:" + serverViewModel.Name);
+        }
+        else
+        {
+            //TODO Show error
+            Console.WriteLine("Error cloning Server: " + serverViewModel.Name);
+        }
+
+        CloneServerOverlay.IsConfirmEnabled = true;
+        CloneServerOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private async void CloneNetwork_Confirmed(object sender, RoutedEventArgs e)
+    {
+        if (viewModel.SelectedEntity is not NetworkViewModel networkViewModel)
+        {
+            return;
+        }
+
+        CloneNetworkOverlay.IsConfirmEnabled = false;
+
+        bool success = await ServerManager.Instance.CloneNetworkAsync(networkViewModel);
+        if (success)
+        {
+            Console.WriteLine("Successfully renamed Network to: " + networkViewModel.Name);
+        }
+        else
+        {
+            //TODO Show error
+            Console.WriteLine("Error renaming Network: " + networkViewModel.Name);
+        }
+
+        CloneNetworkOverlay.IsConfirmEnabled = true;
+        CloneNetworkOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private async void DeleteServer_Confirmed(object sender, RoutedEventArgs e)
+    {
+        if (viewModel.SelectedEntity is not ServerViewModel serverToDelete)
+        {
+            return;
+        }
+
+        DeleteServerOverlay.IsConfirmEnabled = false;
+
+        bool success = await ServerManager.Instance.DeleteServerAsync(serverToDelete);
+        if (!success)
+        {
+            Console.WriteLine("Problem while deleting " + serverToDelete);
+        }
+        else
+        {
+            Console.WriteLine("Successfully deleted server " + serverToDelete);
+            Application.Current.Dispatcher?.Invoke(() => viewModel.Entities.Remove(serverToDelete),
+                DispatcherPriority.Background); //This shouldn't be here
+            ServerList.SelectedIndex = 0;
+        }
+
+        DeleteServerOverlay.IsConfirmEnabled = true;
         DeleteServerOverlay.Visibility = Visibility.Collapsed;
-        DeleteNetworkOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private void Ignore_Click(object sender, RoutedEventArgs e)
+    private async void DeleteNetwork_Confirmed(object sender, RoutedEventArgs e)
     {
-        viewModel.UpdateInstalledJavaVersion(true);
-    }
-
-    private void CheckAgain_Click(object sender, RoutedEventArgs e)
-    {
-        viewModel.UpdateInstalledJavaVersion();
-    }
-
-    private void TextBlock_Link_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is TextBlock textBlock)
+        if (viewModel.SelectedEntity is not NetworkViewModel networkToDelete)
         {
-            string url = textBlock.Text;
-            ForkUtils.OpenUrl(url);
+            return;
         }
+
+        DeleteNetworkOverlay.IsConfirmEnabled = false;
+
+        bool success = await ServerManager.Instance.DeleteNetworkAsync(networkToDelete);
+        if (!success)
+        {
+            Console.WriteLine("Problem while deleting " + networkToDelete.Network);
+        }
+        else
+        {
+            Console.WriteLine("Successfully deleted network " + networkToDelete.Network);
+            Application.Current.Dispatcher?.Invoke(() => viewModel.Entities.Remove(networkToDelete),
+                DispatcherPriority.Background); //This shouldn't be here
+            ServerList.SelectedIndex = 0;
+        }
+
+        DeleteNetworkOverlay.IsConfirmEnabled = true;
+        DeleteNetworkOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void EntityMouseUp(object sender, MouseButtonEventArgs e)
@@ -586,5 +464,14 @@ public partial class MainWindow : Window
     {
         string url = viewModel.LatestForkVersion.URL;
         ForkUtils.OpenUrl(url);
+    }
+
+    private void TextBlock_Link_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is System.Windows.Controls.TextBlock textBlock)
+        {
+            string url = textBlock.Text;
+            ForkUtils.OpenUrl(url);
+        }
     }
 }

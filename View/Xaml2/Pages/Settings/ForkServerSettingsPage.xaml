@@ -22,6 +22,40 @@
 
             <ScrollViewer Margin="10 0 5 10" Style="{DynamicResource SettingsScrollViewer}">
                 <controls:StretchyWrapPanel>
+                    <!-- Server Availability Check -->
+                    <Border CornerRadius="10" Margin="5 5 10 5">
+                        <StackPanel Background="Transparent" Margin="0 20" Width="720" HorizontalAlignment="Left">
+                            <TextBlock Text="Server Availability" Foreground="{DynamicResource textHeader}"
+                                       FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="23"
+                                       Margin="95 0 5 20" />
+                            <StackPanel Margin="110 0 50 10" HorizontalAlignment="Left" Orientation="Horizontal">
+                                <Button x:Name="AvailabilityButton" Click="AvailabilityButton_OnClick" Width="140"
+                                        ToolTip="{Binding AvailabilityTooltip}" ToolTipService.ShowOnDisabled="True"
+                                        ToolTipService.BetweenShowDelay="0"
+                                        ToolTipService.InitialShowDelay="0"
+                                        IsEnabled="{Binding IsAvailabilityCheckEnabled}"
+                                        Style="{DynamicResource RoundedTextButton}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="AvailabilityButtonText" Text="Check Availability"
+                                                   FontSize="16"
+                                                   FontFamily="{DynamicResource Montserrat-Medium}" />
+                                        <Rectangle Width="14" Height="14" Margin="8 0 0 0"
+                                                   Fill="{Binding AvailabilityColor}" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource backgroundHover}" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+
                     <!-- Manage Server -->
                     <Border CornerRadius="10" Margin="5 5 10 5">
                         <StackPanel Background="Transparent" Margin="0 20" Width="720" HorizontalAlignment="Left">

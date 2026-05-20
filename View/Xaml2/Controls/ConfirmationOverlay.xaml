@@ -1,0 +1,92 @@
+<UserControl x:Class="Fork.View.Xaml2.Controls.ConfirmationOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Visibility="Collapsed">
+    <Grid>
+        <Rectangle Fill="#1F2234" Opacity="0.9" Margin="-5 0 0 0" />
+        <StackPanel Panel.ZIndex="1" VerticalAlignment="Center">
+            <TextBlock Text="{Binding OverlayTitle, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       FontSize="28" FontFamily="{DynamicResource Montserrat-Bold}"
+                       TextAlignment="Center" Margin="0 0 0 20">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{DynamicResource textSelected}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDestructive, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource buttonBgrRed}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- Optional input TextBox for rename operations -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 15 0 40">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ShowInput, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <Border CornerRadius="4" Width="200" Height="26"
+                        Background="{DynamicResource textBackground}">
+                    <TextBox Margin="5 0" Background="{DynamicResource textBackground}"
+                             TextAlignment="Center" BorderThickness="0"
+                             Foreground="{DynamicResource backgroundDark}"
+                             FontFamily="{DynamicResource Montserrat-SemiBold}"
+                             FontSize="17" Height="20"
+                             Text="{Binding InputText, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </Border>
+            </StackPanel>
+
+            <TextBlock Text="{Binding WarningText, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       Margin="0 0 0 5" FontSize="17" HorizontalAlignment="Center" Foreground="#f28c8c"
+                       FontFamily="{DynamicResource Montserrat-SemiBold}" />
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 5 0 30">
+                <Button x:Name="CancelBtn" Content="Cancel" Style="{DynamicResource RoundedTextButton}"
+                        Width="100" Margin="20" Click="CancelBtn_Click" />
+                <!-- Green confirm button — shown when IsDestructive=False -->
+                <Button x:Name="ConfirmBtnGreen"
+                        Content="{Binding ConfirmButtonText, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        MinWidth="100" Margin="20"
+                        IsEnabled="{Binding IsConfirmEnabled, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        Click="ConfirmBtn_Click">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource RoundedTextButtonGreen}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDestructive, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <!-- Red confirm button — shown when IsDestructive=True -->
+                <Button x:Name="ConfirmBtnRed"
+                        Content="{Binding ConfirmButtonText, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        MinWidth="100" Margin="20"
+                        IsEnabled="{Binding IsConfirmEnabled, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        Click="ConfirmBtn_Click">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource RoundedTextButtonRed}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDestructive, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

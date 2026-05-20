@@ -3,7 +3,7 @@ using Fork.ViewModel;
 
 namespace Fork.Logic.CustomConsole;
 
-public class ConsoleReader
+public class ConsoleReader : IConsoleReader
 {
     private readonly StreamWriter stdIn;
 

@@ -1,11 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using Fork.Logic.Controller;
-using Fork.Logic.Manager;
-using Fork.Logic.Model;
 using Fork.ViewModel;
 
 namespace Fork.View.Xaml2.Pages.Server;
@@ -34,47 +29,6 @@ public partial class ServerPage : Page
     {
         TerminalTab.IsChecked = true;
         SelectTerminal(this, new RoutedEventArgs());
-    }
-
-    private async void ButtonStartStop_Click(object sender, RoutedEventArgs e)
-    {
-        StartStopButton.IsEnabled = false;
-        TerminalTab.IsChecked = true;
-        SelectTerminal(this, e);
-        if (viewModel.CurrentStatus == ServerStatus.STOPPED)
-        {
-            await ServerManager.Instance.StartServerAsync(viewModel);
-        }
-
-        else if (viewModel.CurrentStatus == ServerStatus.STARTING)
-        {
-            await Task.Run(() => ServerManager.Instance.KillEntity(viewModel));
-        }
-
-        else if (viewModel.CurrentStatus == ServerStatus.RUNNING)
-        {
-            await Task.Run(() => ServerManager.Instance.StopServer(viewModel));
-        }
-
-        StartStopButton.IsEnabled = true;
-    }
-
-    private void CopyIP_Click(object sender, RoutedEventArgs e)
-    {
-        Clipboard.SetText(AddressInfoBox.Text);
-
-        new Thread(() =>
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                CopyIpPopup.IsOpen = true;
-            });
-            Thread.Sleep(1000);
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                CopyIpPopup.IsOpen = false;
-            });
-        }) { IsBackground = true }.Start();
     }
 
     private void SelectTerminal(object sender, RoutedEventArgs e)
@@ -112,17 +66,4 @@ public partial class ServerPage : Page
         foreach (Frame frame in subPages) frame.Visibility = Visibility.Hidden;
     }
 
-    private void RestartButton_Click(object sender, RoutedEventArgs e)
-    {
-        TerminalTab.IsChecked = true;
-        SelectTerminal(this, e);
-        ServerManager.Instance.RestartServerAsync(viewModel);
-    }
-
-    private async void AvailabilityButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        viewModel.LastAvailabilityCheckResult = EntityViewModel.AvailabilityCheckResult.PENDING;
-        bool isAvailable = await Task.Run(() => new APIController().IsServerReachable(viewModel.AddressInfo));
-        viewModel.LastAvailabilityCheckResult = isAvailable ? EntityViewModel.AvailabilityCheckResult.OK : EntityViewModel.AvailabilityCheckResult.FAILED;
-    }
 }

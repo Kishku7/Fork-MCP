@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Resources;
+using System.Linq;
 using System.Threading.Tasks;
 using Fork.Logic.ApplicationConsole;
 using Fork.Logic.Model;
@@ -10,8 +10,8 @@ using Fork.Logic.Model.EventArgs;
 using Fork.Logic.Persistence;
 using Fork.Logic.Utils;
 using Fork.Logic.WebRequesters;
-using Fork.Properties;
 using Fork.ViewModel;
+using System.Reflection;
 
 namespace Fork.Logic.Manager;
 
@@ -22,6 +22,11 @@ public sealed class ApplicationManager
     public delegate void PlayerEventHandler(object sender, PlayerEventArgs e);
 
     public delegate void ServerListEventHandler(object sender, EventArgs e);
+
+    // Canonical version — update here when releasing a new build.
+    // We don't read this from AssemblyInformationalVersion because the WPF designer
+    // temp project auto-generates that attribute and conflicts with AssemblyInfo.cs.
+    private const string ForkVersionString = "1.2.5";
 
     private static string userAgent;
 
@@ -34,13 +39,12 @@ public sealed class ApplicationManager
 
     private ApplicationManager()
     {
-        ResourceManager rm = Resources.ResourceManager;
+        var vParts = ForkVersionString.Split('.');
         CurrentForkVersion = new ForkVersion
         {
-            Major = int.Parse(rm.GetString("VersionMajor")),
-            Minor = int.Parse(rm.GetString("VersionMinor")),
-            Patch = int.Parse(rm.GetString("VersionPatch")),
-            Beta = int.Parse(rm.GetString("VersionBeta"))
+            Major = vParts.Length > 0 && int.TryParse(vParts[0], out var maj) ? maj : 1,
+            Minor = vParts.Length > 1 && int.TryParse(vParts[1], out var min) ? min : 0,
+            Patch = vParts.Length > 2 && int.TryParse(vParts[2], out var pat) ? pat : 0
         };
         DiscordRichPresenceUtils.SetupRichPresence();
     }
@@ -51,9 +55,7 @@ public sealed class ApplicationManager
         {
             if (userAgent == null)
             {
-                ResourceManager rm = Resources.ResourceManager;
-                userAgent = rm.GetString("UserAgent") + " - v" + rm.GetString("VersionMajor") +
-                            "." + rm.GetString("VersionMinor") + "." + rm.GetString("VersionPatch");
+                userAgent = "Fork Client - fork.gg - contact@fork.gg - v" + ForkVersionString;
             }
 
             return userAgent;
@@ -120,11 +122,19 @@ public sealed class ApplicationManager
 
     public void ExitApplication()
     {
+        // Stop all running servers gracefully via their ConsoleReader
+        // (works for both direct and ForkGuard-managed processes).
+        foreach (ServerViewModel vm in ServerManager.Instance.Entities.OfType<ServerViewModel>())
+        {
+            if (vm.CurrentStatus != ServerStatus.STOPPED)
+                ServerLifecycleManager.Instance.StopServer(vm);
+        }
+
+        // Wait for and force-kill any surviving processes.
         List<Process> serversToEnd = new(ActiveEntities.Values);
         foreach (Process process in serversToEnd)
             if (process != null)
             {
-                process.StandardInput.WriteLine("stop");
                 if (!process.WaitForExit(5000))
                 {
                     try
@@ -138,10 +148,6 @@ public sealed class ApplicationManager
                 }
             }
 
-        //if(serversToEnd.Count > 0)
-        //{
-        //   TriggerServerListEvent(this, EventArgs.Empty);
-        //}
         StopDiscordWebSocket();
 
         foreach (SettingsReader settingsReader in SettingsReaders) settingsReader.Dispose();

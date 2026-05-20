@@ -61,10 +61,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public AppSettingsViewModel AppSettingsViewModel { get; }
     public bool HasServers { get; set; }
     public bool NewerVersionExists { get; set; }
-    public bool IsBetaVersion => CurrentForkVersion.Beta != 0;
     public ForkVersion CurrentForkVersion { get; set; }
     public ForkVersion LatestForkVersion { get; set; }
-    public bool IsLatestBeta => LatestForkVersion.Beta != 0;
     public JavaVersion InstalledJavaVersion { get; private set; }
     public bool ShowJavaWarning { get; private set; }
     public string JavaWarningMessage { get; private set; }
@@ -121,11 +119,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public void CheckForkVersion()
     {
-        LatestForkVersion = new APIController().GetLatestForkVersion(AppSettingsViewModel.AppSettings.UseBetaVersions);
+        LatestForkVersion = new APIController().GetLatestForkVersion();
         if (LatestForkVersion.CompareTo(CurrentForkVersion) > 0)
         {
             NewerVersionExists = true;
-            raisePropertyChanged(nameof(IsLatestBeta));
         }
         else
         {

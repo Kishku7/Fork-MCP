@@ -29,7 +29,57 @@
     <DockPanel Margin="0 10 0 0">
 
         <!-- Right Part -->
-        <TabControl DockPanel.Dock="Right" Margin="5" Width="220">
+        <Grid DockPanel.Dock="Right" Width="220" Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />     <!-- Tabs fill available space -->
+                <RowDefinition Height="Auto" />  <!-- Restart timer -->
+                <RowDefinition Height="Auto" />  <!-- Action buttons -->
+            </Grid.RowDefinitions>
+
+            <!-- Restart timer -->
+            <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="8 5 8 0"
+                        Visibility="{Binding AutomationEnabled, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding NextAutomationName}"
+                               FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="13"
+                               Foreground="{DynamicResource textSelected}" />
+                    <TextBlock Text=" in"
+                               FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="13"
+                               Foreground="{DynamicResource textSelected}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Border Width="28" Height="28" Background="{DynamicResource backgroundDark}" Margin="2 0">
+                        <TextBlock Text="{Binding NextAutomationHours}" FontSize="15"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text=" : " FontSize="15" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Montserrat-SemiBold}" />
+                    <Border Width="28" Height="28" Background="{DynamicResource backgroundDark}" Margin="2 0">
+                        <TextBlock Text="{Binding NextAutomationMinutes}" FontSize="15"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text=" : " FontSize="15" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Montserrat-SemiBold}" />
+                    <Border Width="28" Height="28" Background="{DynamicResource backgroundDark}" Margin="2 0">
+                        <TextBlock Text="{Binding NextAutomationSeconds}" FontSize="15"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Action buttons -->
+            <StackPanel Grid.Row="2" Margin="8 5 8 10">
+                <Button x:Name="StartStopButton"
+                        Style="{DynamicResource StartStopTextButton}"
+                        Click="ButtonStartStop_Click"
+                        IsEnabled="{Binding Initialized}"
+                        Margin="0 0 0 5" />
+                <Button Style="{DynamicResource RestartTextButton}"
+                        Click="RestartButton_Click" />
+            </StackPanel>
+
+            <!-- Tabs fill Row 0 -->
+            <TabControl Grid.Row="0" Margin="0">
             <!-- Playerlist -->
             <TabItem BorderBrush="{x:Null}">
                 <TabItem.Header>
@@ -348,12 +398,14 @@
                 </DockPanel>
             </TabItem>
         </TabControl>
+        </Grid>
 
         <!-- Center Part -->
         <DockPanel>
             <!-- Usage monitors -->
             <Grid DockPanel.Dock="Top" Height="60" Margin="20 15 20 0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
@@ -428,6 +480,32 @@
                                    Foreground="{DynamicResource backgroundDark}" />
                     </Grid>
                 </Grid>
+                <Grid Grid.Column="3" Margin="10 0 10 5" MaxWidth="300">
+                    <!-- Background -->
+                    <Border Background="{DynamicResource backgroundDark}" CornerRadius="7" />
+                    <!-- Foreground -->
+                    <Grid Panel.ZIndex="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="NET" FontSize="18" VerticalAlignment="Center"
+                                   HorizontalAlignment="Center" Margin="8 0 6 0"
+                                   FontFamily="{DynamicResource Montserrat-SemiBold}" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0 0 6 0">
+                            <TextBlock Text="{Binding AddressInfo}" FontSize="11"
+                                       HorizontalAlignment="Right"
+                                       FontFamily="{DynamicResource Montserrat-Medium}"
+                                       Foreground="{DynamicResource textDefault}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding PrivateAddressInfo}" FontSize="11"
+                                       HorizontalAlignment="Right"
+                                       FontFamily="{DynamicResource Montserrat-Medium}"
+                                       Foreground="{DynamicResource foregroundDisabled}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
             </Grid>
 
             <!-- Console -->
@@ -455,11 +533,13 @@
 
                 <Grid>
                     <Border Margin="10" CornerRadius="10" Background="{DynamicResource backgroundConsole}">
-                        <ScrollViewer Margin="10" ScrollChanged="ScrollViewer_ScrollChanged"
-                                      Style="{DynamicResource ConsoleScrollViewer}" FocusManager.IsFocusScope="True">
-                            <ListBox ItemsSource="{Binding ConsoleOutList}" Style="{DynamicResource ConsoleListBox}"
-                                     ItemContainerStyle="{DynamicResource ConsoleListBoxItem}" />
-                        </ScrollViewer>
+                        <!-- ScrollViewer is now inside ConsoleListBox's ControlTemplate.
+                             ScrollChanged bubbles up so we catch it here as an attached event. -->
+                        <ListBox Margin="10"
+                                 ItemsSource="{Binding ConsoleOutList}"
+                                 Style="{DynamicResource ConsoleListBox}"
+                                 ItemContainerStyle="{DynamicResource ConsoleListBoxItem}"
+                                 ScrollViewer.ScrollChanged="ScrollViewer_ScrollChanged" />
                     </Border>
                     <Border Panel.ZIndex="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="20">
                         <TextBox x:Name="SearchBox" MinWidth="150" Style="{DynamicResource SearchStyle}"

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Animation;
+using Fork.Logic.Controller;
 using Fork.Logic.Manager;
 using Fork.Logic.Model;
 using Fork.Logic.Model.Settings;
@@ -113,6 +114,15 @@ public partial class ForkServerSettingsPage : Page, ISettingsPage
         Storyboard storyboard = new();
         storyboard.Children.Add(doubleAnimation);
         storyboard.Begin();
+    }
+
+    private async void AvailabilityButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        serverViewModel.LastAvailabilityCheckResult = EntityViewModel.AvailabilityCheckResult.PENDING;
+        bool isAvailable = await Task.Run(() => new APIController().IsServerReachable(serverViewModel.AddressInfo));
+        serverViewModel.LastAvailabilityCheckResult = isAvailable
+            ? EntityViewModel.AvailabilityCheckResult.OK
+            : EntityViewModel.AvailabilityCheckResult.FAILED;
     }
 
     private async void VersionChange_Click(object sender, RoutedEventArgs e)

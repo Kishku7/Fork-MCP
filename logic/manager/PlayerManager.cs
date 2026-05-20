@@ -25,7 +25,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput.WriteLine("whitelist add " + name);
+        viewModel.ConsoleReader?.Read("whitelist add " + name, viewModel);
     }
 
     public void UnWhitelistPlayer(ServerViewModel viewModel, string name)
@@ -36,8 +36,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput
-            .WriteLine("whitelist remove " + name);
+        viewModel.ConsoleReader?.Read("whitelist remove " + name, viewModel);
     }
 
     public void KickPlayer(ServerViewModel viewModel, string name)
@@ -48,8 +47,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput
-            .WriteLine("kick " + name + " You were kicked by an Operator using the Fork Server Manager.");
+        viewModel.ConsoleReader?.Read("kick " + name + " You were kicked by an Operator using the Fork Server Manager.", viewModel);
     }
 
     public void BanPlayer(ServerViewModel viewModel, string name)
@@ -60,8 +58,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput
-            .WriteLine("ban " + name + " You were banned by an Operator using the Fork Server Manager.");
+        viewModel.ConsoleReader?.Read("ban " + name + " You were banned by an Operator using the Fork Server Manager.", viewModel);
     }
 
     public void UnBanPlayer(ServerViewModel viewModel, string name)
@@ -72,7 +69,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput.WriteLine("pardon " + name);
+        viewModel.ConsoleReader?.Read("pardon " + name, viewModel);
     }
 
     public void OpPlayer(ServerViewModel viewModel, string name)
@@ -83,7 +80,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput.WriteLine("op " + name);
+        viewModel.ConsoleReader?.Read("op " + name, viewModel);
     }
 
     public void DeopPlayer(ServerViewModel viewModel, string name)
@@ -94,7 +91,7 @@ public sealed class PlayerManager
             return;
         }
 
-        ApplicationManager.Instance.ActiveEntities[viewModel.Server].StandardInput.WriteLine("deop " + name);
+        viewModel.ConsoleReader?.Read("deop " + name, viewModel);
     }
 
     public async Task<Player> GetPlayer(string name)

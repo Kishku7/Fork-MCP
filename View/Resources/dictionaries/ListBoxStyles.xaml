@@ -4,17 +4,31 @@
     <Style x:Key="ConsoleListBox" TargetType="ListBox">
         <Setter Property="SelectionMode" Value="Extended" />
         <Setter Property="Background" Value="{DynamicResource backgroundDefault}" />
-        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="Margin" Value="0" />
-        <Setter Property="VerticalAlignment" Value="Top" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
-
+        <!-- Virtualization: only ~25 rows rendered at a time regardless of total line count -->
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Item" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBox">
-                    <StackPanel IsItemsHost="True" />
+                    <!-- ScrollViewer must live inside the template so VirtualizingStackPanel
+                         can find its scroll owner and correctly report the visible viewport. -->
+                    <ScrollViewer Style="{DynamicResource ConsoleScrollViewer}"
+                                  CanContentScroll="True"
+                                  FocusManager.IsFocusScope="True"
+                                  Focusable="False">
+                        <ItemsPresenter />
+                    </ScrollViewer>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

@@ -175,20 +175,4 @@ public partial class AppSettingsPage : Page
         }
     }
 
-    private async void UseBetaChanged(object sender, RoutedEventArgs e)
-    {
-        UseBetaBox.IsEnabled = false;
-        if (viewModel.MainViewModel.IsBetaVersion != viewModel.AppSettings.UseBetaVersions)
-        {
-            restartNotice.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            restartNotice.Visibility = Visibility.Collapsed;
-        }
-
-        viewModel.MainViewModel.CheckForkVersion();
-        await viewModel.WriteAppSettingsAsync();
-        UseBetaBox.IsEnabled = true;
-    }
 }

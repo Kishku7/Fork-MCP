@@ -8,7 +8,6 @@ public class ForkVersion : IComparable, IComparable<ForkVersion>
     public int Major { get; set; }
     public int Minor { get; set; }
     public int Patch { get; set; }
-    public int Beta { get; set; }
     public DateTime ReleaseDay { get; set; }
     public string URL { get; set; }
 

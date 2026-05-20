@@ -128,12 +128,10 @@ public class ServerViewModel : EntityViewModel
             Console.WriteLine("Finished reading Role-lists for " + server);
             PlayerList = new ObservableCollection<ServerPlayer>();
             await foreach (ServerPlayer player in PlayerManager.Instance.GetInitialPlayerList(this))
-                Application.Current.Dispatcher?.Invoke(() =>
-                {
-                    PlayerList.Add(player);
-                    Task.Run(RefreshPlayerList);
-                });
+                Application.Current.Dispatcher?.Invoke(() => PlayerList.Add(player));
 
+            // Sort once after all players are loaded — not once per player (thread explosion risk)
+            Application.Current.Dispatcher?.Invoke(() => PlayerList.Sort());
             Console.WriteLine("Initialized PlayerList for server " + server);
 
             whitelistUpdater = new RoleUpdater(RoleType.WHITELIST, WhiteList, Server.Version);
@@ -145,9 +143,11 @@ public class ServerViewModel : EntityViewModel
 
     public void RoleInputHandler(string line)
     {
-        Task.Run(() =>
+        // Use Task.Delay instead of Thread.Sleep — Delay releases the thread while waiting,
+        // preventing thread pool starvation when many log lines arrive before Initialized is set.
+        Task.Run(async () =>
         {
-            while (!Initialized) Thread.Sleep(500);
+            while (!Initialized) await Task.Delay(500).ConfigureAwait(false);
             whitelistUpdater.HandleOutputLine(line);
             banlistUpdater.HandleOutputLine(line);
             oplistUpdater.HandleOutputLine(line);
@@ -285,13 +285,11 @@ public class ServerViewModel : EntityViewModel
     {
         if (automationTime is RestartTime)
         {
-            ApplicationManager.Instance.ActiveEntities[Server].StandardInput
-                .WriteLineAsync("say Next server restart in " + time + "!");
+            ConsoleReader?.Read("say Next server restart in " + time + "!", this);
         }
         else if (automationTime is StopTime)
         {
-            ApplicationManager.Instance.ActiveEntities[Server].StandardInput
-                .WriteLineAsync("say Server shutdown in " + time + "!");
+            ConsoleReader?.Read("say Server shutdown in " + time + "!", this);
         }
     }
 
