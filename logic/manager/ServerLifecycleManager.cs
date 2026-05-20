@@ -279,10 +279,21 @@ public sealed class ServerLifecycleManager
             Task.Run(async () =>
             {
                 await javaProcess.WaitForExitAsync();
+                PeriodicSyncService.Stop(viewModel);
                 ApplicationManager.Instance.ActiveEntities.Remove(viewModel.Server);
                 viewModel.CurrentStatus = ServerStatus.STOPPED;
                 viewModel.ConsoleReader = null;
                 ServerAutomationManager.Instance.UpdateAutomation(viewModel);
+            });
+
+            // Sync state and start periodic polling on a background thread.
+            // Delay briefly so the log tailer has time to warm up and the console
+            // has flushed backfill before we send `list` and wait for its response.
+            Task.Run(async () =>
+            {
+                await Task.Delay(1_500);
+                await ReattachSyncService.SyncAsync(viewModel);
+                PeriodicSyncService.Start(viewModel);
             });
 
             ConsoleWriter.Write(

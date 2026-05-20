@@ -27,4 +27,12 @@ public class AppSettings
     /// Null = no authentication (default). Set via the Fork settings UI or AppSettings.json.
     /// </summary>
     public string? McpAuthToken { get; set; } = null;
+
+    // ── Re-attach polling ─────────────────────────────────────────────────────
+    /// <summary>
+    /// Minutes between automatic state-sync cycles when re-attached to a running
+    /// server via ForkGuard (save-all + role/player list refresh).
+    /// Set to 0 to disable periodic polling. Default: 15.
+    /// </summary>
+    public int ReattachPollIntervalMinutes { get; set; } = 15;
 }
