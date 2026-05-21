@@ -1,7 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -143,15 +145,65 @@ public class ServerViewModel : EntityViewModel
 
     public void RoleInputHandler(string line)
     {
-        // Use Task.Delay instead of Thread.Sleep — Delay releases the thread while waiting,
-        // preventing thread pool starvation when many log lines arrive before Initialized is set.
+        // Use Task.Delay instead of Thread.Sleep to avoid blocking the thread pool
+        // while waiting for Initialized to be set.
         Task.Run(async () =>
         {
             while (!Initialized) await Task.Delay(500).ConfigureAwait(false);
             whitelistUpdater.HandleOutputLine(line);
             banlistUpdater.HandleOutputLine(line);
             oplistUpdater.HandleOutputLine(line);
+            await HandlePlayerConnectionEventAsync(line);
         });
+    }
+
+    private async Task HandlePlayerConnectionEventAsync(string line)
+    {
+        // "[Server thread/INFO]: PlayerName joined the game"
+        Match joinMatch = Regex.Match(line, @"\[Server thread/INFO\]:\s+(\S+) joined the game");
+        if (joinMatch.Success)
+        {
+            await SetPlayerOnlineStatusAsync(joinMatch.Groups[1].Value, isOnline: true);
+            return;
+        }
+
+        // "[Server thread/INFO]: PlayerName left the game"
+        Match leaveMatch = Regex.Match(line, @"\[Server thread/INFO\]:\s+(\S+) left the game");
+        if (leaveMatch.Success)
+            await SetPlayerOnlineStatusAsync(leaveMatch.Groups[1].Value, isOnline: false);
+    }
+
+    private async Task SetPlayerOnlineStatusAsync(string name, bool isOnline)
+    {
+        bool found = false;
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            ServerPlayer? sp = PlayerList.FirstOrDefault(p =>
+                string.Equals(p.Player?.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (sp != null)
+            {
+                sp.IsOnline = isOnline;
+                found = true;
+                RefreshPlayerList();
+            }
+        });
+
+        if (!found && isOnline)
+        {
+            // Player not yet in list (e.g. first join or list loaded after they connected).
+            // Fetch from PlayerManager and add.
+            Player? p = await PlayerManager.Instance.GetPlayer(name);
+            if (p != null)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    bool isOp = OPList.Any(op =>
+                        string.Equals(op.Name, name, StringComparison.OrdinalIgnoreCase));
+                    PlayerList.Add(new ServerPlayer(p, this, isOp, isOnline: true));
+                    RefreshPlayerList();
+                });
+            }
+        }
     }
 
     public void SetAutomationTime(AutomationTime automationTime)

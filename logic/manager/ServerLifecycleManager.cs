@@ -180,6 +180,8 @@ public sealed class ServerLifecycleManager
         else
         {
             // Fallback: spawn Java directly (no re-attach capability).
+            // Note: WindowStyle is intentionally omitted — it has no effect when
+            // UseShellExecute = false. CreateNoWindow = true suppresses the window.
             process.StartInfo = new ProcessStartInfo
             {
                 UseShellExecute        = false,
@@ -189,7 +191,6 @@ public sealed class ServerLifecycleManager
                 FileName               = viewModel.Server.JavaSettings.JavaPath,
                 WorkingDirectory       = directoryInfo.FullName,
                 Arguments              = javaArguments,
-                WindowStyle            = ProcessWindowStyle.Hidden,
                 CreateNoWindow         = true,
             };
             process.Start();
@@ -241,22 +242,51 @@ public sealed class ServerLifecycleManager
         string serverPath = Path.Combine(App.ServerPath, viewModel.Server.Name);
         string markerFile = Path.Combine(serverPath, "fork-guard.marker");
 
-        if (!File.Exists(markerFile)) return;
+        if (!File.Exists(markerFile))
+        {
+            // No marker — server was not running under ForkGuard (or was stopped cleanly).
+            return;
+        }
 
         try
         {
             string[] lines = File.ReadAllLines(markerFile);
-            if (lines.Length < 2) return;
+            if (lines.Length < 2)
+            {
+                ConsoleWriter.Write("[ForkGuard] Re-attach failed — marker file is malformed.", viewModel);
+                return;
+            }
 
             string pipeName = lines[0].Trim();
-            if (!int.TryParse(lines[1].Trim(), out int javaPid)) return;
+            if (!int.TryParse(lines[1].Trim(), out int javaPid))
+            {
+                ConsoleWriter.Write("[ForkGuard] Re-attach failed — could not parse Java PID from marker file.", viewModel);
+                return;
+            }
 
             // Check whether Java is still alive.
             Process javaProcess;
             try   { javaProcess = Process.GetProcessById(javaPid); }
-            catch { return; } // process not found → server already stopped
+            catch
+            {
+                ConsoleWriter.Write($"[ForkGuard] Re-attach failed — Java process (PID {javaPid}) is no longer running.", viewModel);
+                return;
+            }
 
-            if (javaProcess.HasExited) return;
+            if (javaProcess.HasExited)
+            {
+                ConsoleWriter.Write($"[ForkGuard] Re-attach failed — Java process (PID {javaPid}) has already exited.", viewModel);
+                return;
+            }
+
+            // Guard against PID recycling: verify the process is actually Java.
+            if (!javaProcess.ProcessName.StartsWith("java", StringComparison.OrdinalIgnoreCase))
+            {
+                ConsoleWriter.Write(
+                    $"[ForkGuard] Re-attach aborted — PID {javaPid} is now '{javaProcess.ProcessName}', not Java. PID was recycled.",
+                    viewModel);
+                return;
+            }
 
             // ── Re-attach ──────────────────────────────────────────────────────
             viewModel.CurrentStatus = ServerStatus.RUNNING;
@@ -271,6 +301,9 @@ public sealed class ServerLifecycleManager
             // Also tail fork-guard.log for stderr output.
             string guardLog = Path.Combine(serverPath, "fork-guard.log");
             LogTailConsoleWriter.StartTailing(viewModel, guardLog);
+
+            // Wire up performance tracking so CPU/memory metrics are live after re-attach.
+            Task.Run(() => viewModel.TrackPerformance(javaProcess));
 
             // Register in ActiveEntities so KillEntity still works (kills Java directly).
             ApplicationManager.Instance.ActiveEntities[viewModel.Server] = javaProcess;

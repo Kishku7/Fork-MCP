@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using Fork.Logic.CustomConsole;
+using Fork.Logic.Manager;
 using Fork.Logic.Model;
 using Fork.Logic.Model.ServerConsole;
 using Fork.Logic.RoleManagement;
@@ -71,6 +73,12 @@ public static class ReattachSyncService
     {
         if (viewModel.ConsoleReader == null) return;
 
+        // Wait for InitializeLists to finish before syncing online status.
+        // InitializeLists runs concurrently and resolves player UUIDs via the
+        // Mojang API — PlayerList may be empty or incomplete until it sets Initialized.
+        while (!viewModel.Initialized)
+            await Task.Delay(200);
+
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         NotifyCollectionChangedEventHandler handler = (_, e) =>
@@ -117,6 +125,33 @@ public static class ReattachSyncService
         if (colonIdx < 0 || colonIdx + 1 >= line.Length) return;
 
         string namePart = line[(colonIdx + 1)..].Trim();
+        string[] names = string.IsNullOrWhiteSpace(namePart)
+            ? []
+            : namePart.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        // For names not already in PlayerList, fetch via PlayerManager (may hit Mojang API).
+        // Done outside the dispatcher to avoid blocking the UI thread.
+        var toAdd = new List<ServerPlayer>();
+        foreach (string name in names)
+        {
+            bool exists = false;
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                exists = viewModel.PlayerList.Any(p =>
+                    string.Equals(p.Player?.Name, name, StringComparison.OrdinalIgnoreCase));
+            });
+
+            if (!exists)
+            {
+                Player? p = await PlayerManager.Instance.GetPlayer(name);
+                if (p != null)
+                {
+                    bool isOp = viewModel.OPList.Any(op =>
+                        string.Equals(op.Name, name, StringComparison.OrdinalIgnoreCase));
+                    toAdd.Add(new ServerPlayer(p, viewModel, isOp, isOnline: true));
+                }
+            }
+        }
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
@@ -124,21 +159,18 @@ public static class ReattachSyncService
             foreach (ServerPlayer sp in viewModel.PlayerList)
                 sp.IsOnline = false;
 
-            if (!string.IsNullOrWhiteSpace(namePart))
+            // Mark already-known players online.
+            foreach (string name in names)
             {
-                string[] names = namePart.Split(',',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-                foreach (string name in names)
-                {
-                    ServerPlayer? existing = viewModel.PlayerList.FirstOrDefault(p =>
-                        string.Equals(p.Player?.Name, name, StringComparison.OrdinalIgnoreCase));
-                    if (existing != null)
-                        existing.IsOnline = true;
-                    // Players not in PlayerList yet (connected after Fork last ran)
-                    // will be picked up by RoleInputHandler on their next join event.
-                }
+                ServerPlayer? existing = viewModel.PlayerList.FirstOrDefault(p =>
+                    string.Equals(p.Player?.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                    existing.IsOnline = true;
             }
+
+            // Add players that weren't in the list yet (e.g. joined while Mojang lookup was slow).
+            foreach (ServerPlayer sp in toAdd)
+                viewModel.PlayerList.Add(sp);
 
             viewModel.RefreshPlayerList();
         });

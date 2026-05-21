@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Fork.Logic.ApplicationConsole;
@@ -26,7 +27,7 @@ public sealed class ApplicationManager
     // Canonical version — update here when releasing a new build.
     // We don't read this from AssemblyInformationalVersion because the WPF designer
     // temp project auto-generates that attribute and conflicts with AssemblyInfo.cs.
-    private const string ForkVersionString = "1.2.5";
+    private const string ForkVersionString = "1.4.0";
 
     private static string userAgent;
 
@@ -122,17 +123,37 @@ public sealed class ApplicationManager
 
     public void ExitApplication()
     {
-        // Stop all running servers gracefully via their ConsoleReader
-        // (works for both direct and ForkGuard-managed processes).
+        // Stop running servers gracefully — but skip ForkGuard-managed servers.
+        // A server is guarded when fork-guard.marker exists in its directory;
+        // those servers are designed to outlive Fork and should not be stopped
+        // on exit. Stopping them here would defeat the entire purpose of ForkGuard.
         foreach (ServerViewModel vm in ServerManager.Instance.Entities.OfType<ServerViewModel>())
         {
-            if (vm.CurrentStatus != ServerStatus.STOPPED)
-                ServerLifecycleManager.Instance.StopServer(vm);
+            if (vm.CurrentStatus == ServerStatus.STOPPED) continue;
+
+            string marker = Path.Combine(App.ServerPath, vm.Name, "fork-guard.marker");
+            if (File.Exists(marker)) continue; // guarded — intentionally survives Fork exit
+
+            ServerLifecycleManager.Instance.StopServer(vm);
         }
 
-        // Wait for and force-kill any surviving processes.
-        List<Process> serversToEnd = new(ActiveEntities.Values);
-        foreach (Process process in serversToEnd)
+        // Wait for and force-kill any surviving non-guarded processes.
+        // Guarded servers are excluded from both the wait and the kill:
+        //   - For ForkGuard-started servers: ActiveEntities holds the ForkGuard process.
+        //     Killing ForkGuard closes its Job Object handle, which kills Java via
+        //     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE — exactly what we must NOT do.
+        //   - For re-attached servers: ActiveEntities holds the Java process directly.
+        //     Killing it stops the server that should survive.
+        var processesToEnd = ActiveEntities
+            .Where(kvp =>
+            {
+                string marker = Path.Combine(App.ServerPath, kvp.Key.Name, "fork-guard.marker");
+                return !File.Exists(marker); // only kill unguarded processes
+            })
+            .Select(kvp => kvp.Value)
+            .ToList();
+
+        foreach (Process process in processesToEnd)
             if (process != null)
             {
                 if (!process.WaitForExit(5000))

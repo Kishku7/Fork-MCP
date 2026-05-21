@@ -114,10 +114,32 @@ A number of crashes and race conditions present in the upstream codebase have be
 
 ---
 
+### 🩺 Health Endpoint
+
+Fork-MCP now exposes a `GET /health` endpoint on the MCP server port. Returns current application status, server count, and uptime. Useful for monitoring and automated health checks.
+
+### 🔒 Server Survival on Fork Exit (ForkGuard Fix A)
+
+Previously, closing the Fork application would terminate the Job Object and kill all managed Minecraft servers. Fork-MCP now detaches from the Job Object on clean exit — servers keep running, guarded by ForkGuard, ready to re-attach next time Fork starts.
+
+### 🔁 TryReattach Hardening (ForkGuard Fix B)
+
+Re-attach is now more resilient: better handling of edge cases where ForkGuard's named pipe is slow to appear, improved timeout behaviour, and cleaner error reporting when re-attach fails.
+
+### 👥 Accurate Online Player Tracking
+
+Player list accuracy has been significantly improved across two areas:
+
+- **Race condition fix** — `SyncOnlinePlayersAsync` previously ran before `InitializeLists` finished resolving player UUIDs (which involves Mojang API calls). The result was an empty `PlayerList` at sync time, so online players were silently skipped. The sync now waits for `Initialized` before querying the server.
+- **Unknown player recovery** — When a player appears in the `list` response but isn't yet in `PlayerList` (e.g. first join, or connected before Fork attached), they are now fetched from `PlayerManager` and added automatically rather than ignored.
+- **Real-time join/leave tracking** — `RoleInputHandler` now parses `joined the game` and `left the game` console events and updates `IsOnline` immediately. Players are added to `PlayerList` on first join even if they weren't present at attach time.
+
 ## Version History
 
 | Version | Highlights |
 |---------|------------|
+| 1.5.0 | Accurate online player tracking — race condition fix, unknown player recovery, real-time join/leave |
+| 1.4.0 | Health endpoint, server survival on Fork exit (ForkGuard Fix A), TryReattach hardening (Fix B), WindowStyle cleanup |
 | 1.3.0 | Re-attach state sync, log backfill, periodic polling, RoleInputHandler gated post-backfill |
 | 1.2.5 | ForkGuard integration, thread explosion fix, GDI+ crash fix, startup deadlock fix, log tailer |
 | 1.2.0 | Console virtualisation, 100k line buffer, async dispatcher pipeline |
