@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Get version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Build Fork (framework-dependent)
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force publish\fork -ErrorAction SilentlyContinue
+          dotnet publish Fork.csproj `
+            -c Release `
+            --no-self-contained `
+            -o publish\fork
+
+      - name: Build ForkGuard (NativeAOT)
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force publish\forkguard -ErrorAction SilentlyContinue
+          dotnet publish ForkGuard\ForkGuard.csproj `
+            -c Release `
+            -o publish\forkguard
+
+      - name: Bundle release zip
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.TAG }}"
+          $zipName = "Fork-MCP-$tag.zip"
+
+          # Copy ForkGuard.exe into the Fork publish folder
+          Copy-Item publish\forkguard\ForkGuard.exe publish\fork\ForkGuard.exe
+
+          # Zip the fork publish folder
+          Compress-Archive -Path publish\fork\* -DestinationPath $zipName -Force
+
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_OUTPUT
+        id: bundle
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Fork-MCP ${{ steps.version.outputs.TAG }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: ${{ steps.bundle.outputs.ZIP_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
