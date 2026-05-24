@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Bump the Fork version in Fork.csproj.
+    Bump the Fork version in Fork.csproj, AssemblyInfo.cs, and ApplicationManager.cs.
 
 .DESCRIPTION
     Reads the current <Version> from Fork.csproj, increments the specified
-    component, and writes it back. The new version flows automatically into
-    the assembly at build time â€” no other files need updating.
+    component, and writes it back to Fork.csproj, Properties\AssemblyInfo.cs,
+    and the ForkVersionString constant in Logic\Manager\ApplicationManager.cs.
 
 .PARAMETER Part
     Which part to increment: patch (default), minor, or major.
@@ -72,6 +72,13 @@ $asmContent = Get-Content $asmInfo -Raw
 $replacement = '[assembly: AssemblyInformationalVersion("' + $newVersion + '")]'
 $asmContent  = $asmContent -replace '\[assembly: AssemblyInformationalVersion\("([^"]+)"\)\]', $replacement
 [System.IO.File]::WriteAllText($asmInfo, $asmContent)
+
+# Also update ForkVersionString constant in ApplicationManager.cs
+$appMgr = Join-Path $PSScriptRoot '..\Logic\Manager\ApplicationManager.cs'
+$appMgr = (Resolve-Path $appMgr).Path
+$appContent = Get-Content $appMgr -Raw
+$appContent = $appContent -replace '(private const string ForkVersionString\s*=\s*")[^"]+(")', "`${1}$newVersion`$2"
+[System.IO.File]::WriteAllText($appMgr, $appContent)
 
 Write-Host "Version bumped: $versionNode -> $newVersion"
 Write-Host "Build and deploy to apply."
