@@ -52,7 +52,7 @@ Fork-MCP embeds a full **Model Context Protocol (MCP) server** over Streamable H
 | `start_server` | Start a stopped server |
 | `stop_server` | Stop a running server |
 | `restart_server` | Restart (starts if stopped) |
-| `list_players` | Online players with OP status |
+| `list_players` | All known players (online and offline) with OP status |
 | `get_setting` | Read a `server.properties` key |
 | `set_setting` | Write a `server.properties` key |
 | `list_plugins` | List plugins with enabled/disabled state |
@@ -126,18 +126,27 @@ Previously, closing the Fork application would terminate the Job Object and kill
 
 Re-attach is now more resilient: better handling of edge cases where ForkGuard's named pipe is slow to appear, improved timeout behaviour, and cleaner error reporting when re-attach fails.
 
-### 👥 Accurate Online Player Tracking
+### ☕ Per-Server Java Version Selection
 
-Player list accuracy has been significantly improved across two areas:
+Fork-MCP adds a Java version discovery service and per-server version selector. On startup it scans for installed Java runtimes in priority order: Modrinth app data, Eclipse Adoptium, `C:\Program Files\Java`, and an optional extra directory configured in app settings. Each server can then select a specific major version (Auto, 8, 11, 17, 21, 25) from a dropdown — Fork picks the highest available patch release for that major at launch time. The extra directory and a manual reload button are available in App Settings → Java Installations.
+
+### 👥 Accurate Player Tracking
+
+Player list accuracy has been significantly improved across multiple areas:
 
 - **Race condition fix** — `SyncOnlinePlayersAsync` previously ran before `InitializeLists` finished resolving player UUIDs (which involves Mojang API calls). The result was an empty `PlayerList` at sync time, so online players were silently skipped. The sync now waits for `Initialized` before querying the server.
 - **Unknown player recovery** — When a player appears in the `list` response but isn't yet in `PlayerList` (e.g. first join, or connected before Fork attached), they are now fetched from `PlayerManager` and added automatically rather than ignored.
 - **Real-time join/leave tracking** — `RoleInputHandler` now parses `joined the game` and `left the game` console events and updates `IsOnline` immediately. Players are added to `PlayerList` on first join even if they weren't present at attach time.
+- **Startup player list — Minecraft 26.x compatibility** — Minecraft 26.x moved player data from `world/playerdata/` to `world/players/data/`, and moved region data from the world root into `dimensions/`. The old scanner checked `playerdata/` only and relied on world directory validation (which requires a `region/` folder) — both assumptions broke silently on modern servers, leaving the player list empty until someone logged in. Fork-MCP now scans the server directory directly up to two levels deep, checks both path patterns, and no longer depends on world validation to discover player files.
+- **usercache.json as name resolver** — Player names are now resolved from the server's `usercache.json` (written by Minecraft on every connect) instead of the Mojang session API, eliminating cold-start network calls and making player list population instantaneous.
+- **`list_players` shows all known players** — Previously only showed currently online players. Now groups all known players as Online / Known offline, with OP status shown for both.
 
 ## Version History
 
 | Version | Highlights |
 |---------|------------|
+| 1.5.2 | Startup player list fix for Minecraft 26.x — new path scan, usercache resolver, list_players shows all known players |
+| 1.5.1 | Per-server Java version selection — discovery service, major version dropdown, bump-version.ps1 corrected |
 | 1.5.0 | Accurate online player tracking — race condition fix, unknown player recovery, real-time join/leave |
 | 1.4.0 | Health endpoint, server survival on Fork exit (ForkGuard Fix A), TryReattach hardening (Fix B), WindowStyle cleanup |
 | 1.3.0 | Re-attach state sync, log backfill, periodic polling, RoleInputHandler gated post-backfill |
