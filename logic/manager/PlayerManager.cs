@@ -116,45 +116,142 @@ public sealed class PlayerManager
 
     public async IAsyncEnumerable<ServerPlayer> GetInitialPlayerList(ServerViewModel viewModel)
     {
-        {
-            HashSet<string> playerIDsToAdd = new();
-            foreach (World world in viewModel.Worlds)
-                if (world.Directory.Exists)
-                {
-                    DirectoryInfo playerData = new(Path.Combine(world.Directory.FullName, "playerdata"));
-                    if (playerData.Exists)
-                    {
-                        foreach (string fileName in Directory.GetFiles(playerData.FullName, "*.dat",
-                                     SearchOption.TopDirectoryOnly))
-                        {
-                            string uuid = new FileInfo(fileName).Name.Replace("-", "").Replace(".dat", "");
-                            if (ValidateUuid(uuid))
-                            {
-                                playerIDsToAdd.Add(uuid);
-                            }
-                        }
-                    }
-                }
+        // Load usercache.json for fast UUID→name resolution — no Mojang API needed.
+        // Minecraft writes this file itself whenever a player connects.
+        Dictionary<string, string> uuidNameCache = LoadUserCache(viewModel.Server);
 
-            foreach (string uuid in playerIDsToAdd)
+        HashSet<string> playerIDsToAdd = new();
+
+        // Scan the server directory directly for player .dat files.
+        // We do NOT rely on viewModel.Worlds because WorldValidationInfo.IsValid requires
+        // a "region/" subdirectory that Minecraft 26.x+ no longer places at the world root
+        // (region data moved to dimensions/), causing Worlds to be empty on modern servers.
+        // Instead we walk up to 2 levels from the server root looking for both path patterns:
+        //   - playerdata/*.dat       (pre-26.x, stored directly under the world dir)
+        //   - players/data/*.dat     (26.x+, stored under world/players/data/)
+        string serverDir = Path.Combine(App.ServerPath, viewModel.Server.Name);
+        if (Directory.Exists(serverDir))
+            CollectPlayerUuids(new DirectoryInfo(serverDir), playerIDsToAdd, depth: 0, maxDepth: 2);
+
+        bool anyNew = false;
+        foreach (string uuid in playerIDsToAdd)
+        {
+            Player p;
+
+            // 1. Already in PlayerSet (fastest path — no I/O)
+            Player[] existing = PlayerSet.Where(pl => pl.Uid.Equals(uuid, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (existing.Any())
             {
-                Player p;
+                p = existing.First();
+            }
+            // 2. In usercache — build Player directly, no Mojang API call
+            else if (uuidNameCache.TryGetValue(uuid, out string cachedName) && CheckPlayerName(cachedName))
+            {
+                p = new Player { Uid = uuid, Name = cachedName, OfflineChar = false, LastUpdated = DateTime.Now };
+                PlayerSet.Add(p);
+                anyNew = true;
+            }
+            // 3. Fall back to Mojang API (original path for servers without usercache)
+            else
+            {
                 lock (Instance)
                 {
                     if (!playerGenerators.ContainsKey(uuid))
-                    {
                         playerGenerators.Add(uuid, GetPlayerFromUuid(uuid));
-                    }
                 }
-
                 p = await playerGenerators[uuid];
-                if (p != null)
+            }
+
+            if (p != null)
+            {
+                bool isOp = viewModel.OPList.Any(op =>
+                    string.Equals(op.Uid, p.Uid, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(op.Name, p.Name, StringComparison.OrdinalIgnoreCase));
+                yield return new ServerPlayer(p, viewModel, isOp, false);
+            }
+        }
+
+        if (anyNew)
+            SafePlayersToFile();
+    }
+
+    /// <summary>
+    ///     Recursively scan <paramref name="dir"/> for player .dat files.
+    ///     Checks both "playerdata/" (pre-26.x) and "players/data/" (26.x+) at each level.
+    /// </summary>
+    private void CollectPlayerUuids(DirectoryInfo dir, HashSet<string> results, int depth, int maxDepth)
+    {
+        if (!dir.Exists || depth > maxDepth) return;
+
+        // Pattern 1: {dir}/playerdata/*.dat  (legacy)
+        DirectoryInfo legacy = new(Path.Combine(dir.FullName, "playerdata"));
+        if (legacy.Exists)
+            foreach (string f in Directory.GetFiles(legacy.FullName, "*.dat", SearchOption.TopDirectoryOnly))
+            {
+                string uuid = Path.GetFileNameWithoutExtension(f).Replace("-", "");
+                if (ValidateUuid(uuid)) results.Add(uuid);
+            }
+
+        // Pattern 2: {dir}/players/data/*.dat  (Minecraft 26.x+)
+        DirectoryInfo modern = new(Path.Combine(dir.FullName, "players", "data"));
+        if (modern.Exists)
+            foreach (string f in Directory.GetFiles(modern.FullName, "*.dat", SearchOption.TopDirectoryOnly))
+            {
+                string uuid = Path.GetFileNameWithoutExtension(f).Replace("-", "");
+                if (ValidateUuid(uuid)) results.Add(uuid);
+            }
+
+        // Recurse into subdirectories — skip non-world directories to keep the scan fast
+        if (depth < maxDepth)
+            foreach (DirectoryInfo sub in dir.EnumerateDirectories())
+            {
+                string name = sub.Name;
+                if (name.StartsWith(".") || name == "bin" || name == "logs" || name == "mods" ||
+                    name == "plugins" || name == "config" || name == "cache" || name == "libraries" ||
+                    name == "versions" || name == "backups" || name == "players" || name == "playerdata")
+                    continue;
+                CollectPlayerUuids(sub, results, depth + 1, maxDepth);
+            }
+    }
+
+    /// <summary>
+    ///     Read usercache.json from the server directory.
+    ///     Returns a dict of UUID (dashes stripped, lowercase) → player name.
+    ///     This file is written by Minecraft itself — no external API needed.
+    /// </summary>
+    private Dictionary<string, string> LoadUserCache(Server server)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            string path = Path.Combine(App.ServerPath, server.Name, "usercache.json");
+            if (!File.Exists(path)) return result;
+
+            var entries = JsonConvert.DeserializeObject<List<UserCacheEntry>>(File.ReadAllText(path));
+            if (entries == null) return result;
+
+            foreach (UserCacheEntry entry in entries)
+            {
+                if (!string.IsNullOrEmpty(entry.uuid) && !string.IsNullOrEmpty(entry.name))
                 {
-                    ServerPlayer player = new(p, viewModel, viewModel.OPList.Contains(p), false);
-                    yield return player;
+                    string stripped = entry.uuid.Replace("-", "").ToLowerInvariant();
+                    if (!result.ContainsKey(stripped))
+                        result[stripped] = entry.name;
                 }
             }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PlayerManager] Failed to read usercache.json for {server.Name}: {ex.Message}");
+        }
+        return result;
+    }
+
+    private class UserCacheEntry
+    {
+        public string name { get; set; }
+        public string uuid { get; set; }
+        public string expiresOn { get; set; }
     }
 
     private async Task<Player> CreatePlayer(string name)
