@@ -234,14 +234,6 @@ public abstract partial class EntityViewModel : BaseViewModel
         });
     }
 
-    public void UpdateDefaultJavaPath(string oldPath, string newPath)
-    {
-        if (Entity.JavaSettings.JavaPath.Equals(oldPath))
-        {
-            Entity.JavaSettings.JavaPath = newPath;
-            EntitySerializer.Instance.StoreEntities();
-        }
-    }
 
     public void InitializeSettingsFiles(List<SettingsFile> files)
     {

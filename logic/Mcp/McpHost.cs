@@ -151,11 +151,15 @@ public sealed class McpHost : IDisposable
                 // ── Java executable check (only meaningful when stopped) ──────
                 if (vm.CurrentStatus == ServerStatus.STOPPED)
                 {
-                    string javaPath = vm.Entity.JavaSettings.JavaPath;
-                    if (!javaPath.Equals("java.exe", StringComparison.OrdinalIgnoreCase) &&
-                        !File.Exists(javaPath))
+                    var resolved = Fork.Logic.Service.JavaDiscoveryService.Instance
+                        .GetBestForMajor(vm.Entity.JavaSettings.PreferredMajorVersion);
+                    if (resolved == null)
                     {
-                        issues.Add($"Java executable not found: {javaPath}");
+                        issues.Add("No Java installation found � check Java Installations in Fork settings");
+                    }
+                    else if (!File.Exists(resolved.BinaryPath))
+                    {
+                        issues.Add($"Java executable not found: {resolved.BinaryPath}");
                     }
                 }
 

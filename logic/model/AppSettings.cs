@@ -7,7 +7,20 @@ public class AppSettings
     public string ServerPath { get; set; } = Path.Combine(App.ApplicationPath, "servers");
     public int MaxConsoleLines { get; set; } = 100_000;
     public int MaxConsoleLinesPerSecond { get; set; } = 10;
+
+    /// <summary>
+    /// Legacy field — preserved so old AppSettings.json files deserialize without error.
+    /// No longer drives Java selection; JavaBaseDirectory + JavaDiscoveryService do that.
+    /// </summary>
     public string DefaultJavaPath { get; set; } = "java.exe";
+
+    /// <summary>
+    /// Optional extra root directory that JavaDiscoveryService will scan for java.exe binaries
+    /// (in addition to Modrinth AppData, Eclipse Adoptium, and C:\Program Files\Java).
+    /// Null or empty = no user-defined root.
+    /// </summary>
+    public string? JavaBaseDirectory { get; set; } = null;
+
     public bool EnableDiscordBot { get; set; } = false;
     public string DiscordBotToken { get; set; }
     public bool ConsoleThrottling { get; set; } = true;

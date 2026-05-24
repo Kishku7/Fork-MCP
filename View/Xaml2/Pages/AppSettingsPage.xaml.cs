@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,6 +11,7 @@ using System.Windows.Media;
 using Fork.Logic.Logging;
 using Fork.Logic.Manager;
 using Fork.Logic.Persistence;
+using Fork.Logic.Service;
 using Fork.logic.Utils;
 using Fork.ViewModel;
 using Application = System.Windows.Application;
@@ -27,12 +29,18 @@ public partial class AppSettingsPage : Page
         InitializeComponent();
         this.viewModel = viewModel;
         DataContext = this.viewModel;
+        UpdateJavaDiscoveryStatus();
+        // Refresh status when discovery completes in background
+        JavaDiscoveryService.Instance.KnownJavaVersions.CollectionChanged += (_, _) => UpdateJavaDiscoveryStatus();
+        foreach (var k in JavaDiscoveryService.Instance.KnownJavaVersions)
+            k.PropertyChanged += (_, _) => UpdateJavaDiscoveryStatus();
     }
+
+    // ── Server directory ─────────────────────────────────────────────────────
 
     private void OpenForkServerDir_Click(object sender, RoutedEventArgs e)
     {
-        string path = Path.Combine(ForkServerPath.Text);
-        Process.Start("explorer.exe", "-p, " + path);
+        Process.Start("explorer.exe", "-p, " + ForkServerPath.Text);
     }
 
     private async void ApplyNewServerDir_Click(object sender, RoutedEventArgs e)
@@ -45,16 +53,9 @@ public partial class AppSettingsPage : Page
         catch (Exception ex)
         {
             ServerDirChangeErrorGrid.Visibility = Visibility.Visible;
-            if (ex is UnauthorizedAccessException)
-            {
-                ErrorMsgBox.Text = "Fork can't access \"" + ForkServerPath.Text +
-                                   "\"! Please try to use another directory.";
-            }
-            else
-            {
-                ErrorMsgBox.Text = ex.Message;
-            }
-
+            ErrorMsgBox.Text = ex is UnauthorizedAccessException
+                ? $"Fork can't access \"{ForkServerPath.Text}\"! Please try another directory."
+                : ex.Message;
             ErrorLogger.Append(ex);
             return;
         }
@@ -62,8 +63,7 @@ public partial class AppSettingsPage : Page
         if (!result)
         {
             ServerDirChangeErrorGrid.Visibility = Visibility.Visible;
-            ErrorMsgBox.Text =
-                "Unknown error, this should not happen, please report to a Fork developer. Sadly this might have broken the functionality of Fork.";
+            ErrorMsgBox.Text = "Unknown error — please report to a Fork developer.";
             return;
         }
 
@@ -76,49 +76,15 @@ public partial class AppSettingsPage : Page
     private void ServerDirPath_MouseDown(object sender, MouseButtonEventArgs e)
     {
         FolderBrowserDialog fbd = new() { SelectedPath = ForkServerPath.Text };
-
-        DialogResult result = fbd.ShowDialog();
-        if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+        if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
         {
             ForkServerPath.Text = fbd.SelectedPath;
-            if (!ForkServerPath.Text.Equals(viewModel.AppSettings.ServerPath))
-            {
-                ServerDirChangedGrid.Visibility = Visibility.Visible;
-                ResetServerDirButton.Visibility = Visibility.Visible;
-                serverPathBgr.Background = (Brush)Application.Current.FindResource("tabSelected");
-            }
-            else
-            {
-                ServerDirChangedGrid.Visibility = Visibility.Collapsed;
-                ResetServerDirButton.Visibility = Visibility.Collapsed;
-                serverPathBgr.Background = (Brush)Application.Current.FindResource("textBackground");
-            }
+            bool changed = !ForkServerPath.Text.Equals(viewModel.AppSettings.ServerPath);
+            ServerDirChangedGrid.Visibility = changed ? Visibility.Visible : Visibility.Collapsed;
+            ResetServerDirButton.Visibility = changed ? Visibility.Visible : Visibility.Collapsed;
+            serverPathBgr.Background = (Brush)Application.Current.FindResource(
+                changed ? "tabSelected" : "textBackground");
         }
-    }
-
-    private void JavaPath_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        OpenFileDialog ofd = new()
-            { Multiselect = false, Filter = "Java executable|java.exe", Title = "Select a java.exe" };
-        if (new DirectoryInfo(ForkDefaultJavaPath.Text.Replace(@"\java.exe", "")).Exists)
-        {
-            ofd.InitialDirectory = ForkDefaultJavaPath.Text.Replace(@"\java.exe", "");
-        }
-        else
-        {
-            ofd.InitialDirectory = @"C:\Program Files";
-        }
-
-        DialogResult result = ofd.ShowDialog();
-        if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(ofd.FileName))
-        {
-            ForkDefaultJavaPath.Text = ofd.FileName;
-        }
-    }
-
-    private void DefaultJavaDirReset_Click(object sender, RoutedEventArgs e)
-    {
-        ForkDefaultJavaPath.Text = "java.exe";
     }
 
     private void ResetServerDir_Click(object sender, RoutedEventArgs e)
@@ -130,17 +96,71 @@ public partial class AppSettingsPage : Page
         serverPathBgr.Background = (Brush)Application.Current.FindResource("buttonBgrDefault");
     }
 
-    private void BecomeSupporter_Click(object sender, RoutedEventArgs e)
+    // ── Java installations ────────────────────────────────────────────────────
+
+    private void JavaBaseDir_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        string url = "https://www.ko-fi.com/forkgg";
-        ForkUtils.OpenUrl(url);
+        FolderBrowserDialog fbd = new()
+        {
+            Description = "Select the root folder containing Java installations",
+            SelectedPath = viewModel.AppSettings.JavaBaseDirectory ?? @"C:\Program Files"
+        };
+        if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+        {
+            viewModel.AppSettings.JavaBaseDirectory = fbd.SelectedPath;
+            ForkJavaBaseDir.Text = fbd.SelectedPath;
+        }
     }
 
-    private void InviteDiscordBot_Click(object sender, MouseButtonEventArgs e)
+    private void BrowseJavaBaseDir_Click(object sender, RoutedEventArgs e)
     {
-        string url = "https://bot.fork.gg";
-        ForkUtils.OpenUrl(url);
+        FolderBrowserDialog fbd = new()
+        {
+            Description = "Select the root folder containing Java installations",
+            SelectedPath = viewModel.AppSettings.JavaBaseDirectory ?? @"C:\Program Files"
+        };
+        if (fbd.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+        {
+            viewModel.AppSettings.JavaBaseDirectory = fbd.SelectedPath;
+            ForkJavaBaseDir.Text = fbd.SelectedPath;
+        }
     }
+
+    private void ClearJavaBaseDir_Click(object sender, RoutedEventArgs e)
+    {
+        viewModel.AppSettings.JavaBaseDirectory = null;
+        ForkJavaBaseDir.Text = "";
+    }
+
+    private void ReloadJavaVersions_Click(object sender, RoutedEventArgs e)
+    {
+        JavaDiscoveryStatus.Text = "Scanning…";
+        Task.Run(() =>
+        {
+            JavaDiscoveryService.Instance.Reload();
+            Application.Current.Dispatcher.Invoke(UpdateJavaDiscoveryStatus);
+        });
+    }
+
+    private void UpdateJavaDiscoveryStatus()
+    {
+        var available = JavaDiscoveryService.Instance.KnownJavaVersions
+            .Where(k => k.Major > 0 && k.IsAvailable)
+            .Select(k => $"Java {k.Major} ({k.Best?.FullVersion})")
+            .ToList();
+
+        JavaDiscoveryStatus.Text = available.Count > 0
+            ? "Found: " + string.Join(" · ", available)
+            : "No Java installations found — check directories above or install Java.";
+    }
+
+    // ── Discord ───────────────────────────────────────────────────────────────
+
+    private void BecomeSupporter_Click(object sender, RoutedEventArgs e)
+        => ForkUtils.OpenUrl("https://www.ko-fi.com/forkgg");
+
+    private void InviteDiscordBot_Click(object sender, MouseButtonEventArgs e)
+        => ForkUtils.OpenUrl("https://bot.fork.gg");
 
     private async void CopyDiscordToken_Click(object sender, MouseButtonEventArgs e)
     {
@@ -159,20 +179,10 @@ public partial class AppSettingsPage : Page
 
     private void EnableDisableDiscordBot_Click(object sender, MouseButtonEventArgs e)
     {
-        if (sender is CheckBox checkBox)
+        if (sender is CheckBox checkBox && checkBox.IsChecked.HasValue)
         {
-            if (checkBox.IsChecked != null)
-            {
-                if ((bool)checkBox.IsChecked)
-                {
-                    ApplicationManager.StopDiscordWebSocket();
-                }
-                else
-                {
-                    ApplicationManager.StartDiscordWebSocket();
-                }
-            }
+            if (checkBox.IsChecked.Value) ApplicationManager.StopDiscordWebSocket();
+            else                          ApplicationManager.StartDiscordWebSocket();
         }
     }
-
 }

@@ -12,6 +12,7 @@ using Fork.Logic.Manager;
 using Fork.Logic.Model;
 using Fork.Logic.Model.ProxyModels;
 using Fork.Logic.Persistence;
+using Fork.Logic.Service;
 using Fork.Logic.Utils;
 using Fork.Logic.WebRequesters;
 using Fork.ViewModel;
@@ -52,10 +53,6 @@ public class NetworkController
 
         //Download server.jar
         Downloader.DownloadJarAsync(viewModel, directoryInfo);
-
-        //Writing necessary files
-        //TODO write settings
-        //new FileWriter().WriteServerSettings(Path.Combine(App.ServerPath, directoryInfo.Name), serverSettings.SettingsDictionary);
 
         return true;
     }
@@ -126,7 +123,12 @@ public class NetworkController
             return false;
         }
 
-        JavaVersion javaVersion = JavaVersionUtils.GetInstalledJavaVersion(viewModel.Network.JavaSettings.JavaPath);
+        // Resolve the Java binary through the discovery service.
+        string resolvedJavaPath = JavaDiscoveryService.Instance
+            .GetBestForMajor(viewModel.Network.JavaSettings.PreferredMajorVersion)
+            ?.BinaryPath ?? "java.exe";
+
+        JavaVersion javaVersion = JavaVersionUtils.GetInstalledJavaVersion(resolvedJavaPath);
         if (javaVersion == null)
         {
             ConsoleWriter.Write("ERROR: Java is not installed! Minecraft networks require Java!", viewModel);
@@ -162,7 +164,7 @@ public class NetworkController
             RedirectStandardError = true,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            FileName = viewModel.Network.JavaSettings.JavaPath,
+            FileName = resolvedJavaPath,
             WorkingDirectory = directoryInfo.FullName,
             Arguments = "-Xmx" + viewModel.Network.JavaSettings.MaxRam + "m " +
                         viewModel.Network.JavaSettings.StartupParameters + " -jar server.jar nogui",
@@ -284,7 +286,6 @@ public class NetworkController
 
             string newName = RefineName(viewModel.Name + "-Clone", usedEntityNames);
 
-            //Better to use a object copy function
             string oldNetworkJson = JsonConvert.SerializeObject(viewModel.Network);
             Network newNetwork = JsonConvert.DeserializeObject<Network>(oldNetworkJson);
 
@@ -297,10 +298,8 @@ public class NetworkController
             Application.Current.Dispatcher?.Invoke(() => ServerManager.Instance.Entities.Add(newNetworkViewModel));
             ApplicationManager.Instance.MainViewModel.SelectedEntity = newNetworkViewModel;
 
-            //Create server directory
             Directory.CreateDirectory(newNetworkPath);
 
-            //Import server files
             Thread copyThread = new(() =>
             {
                 FileImporter fileImporter = new();

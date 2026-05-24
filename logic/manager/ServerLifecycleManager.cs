@@ -13,6 +13,7 @@ using Fork.Logic.Service;
 using Fork.Logic.Utils;
 using Fork.Logic.WebRequesters;
 using Fork.ViewModel;
+using JavaDiscovery = Fork.Logic.Service.JavaDiscoveryService;
 
 namespace Fork.Logic.Manager;
 
@@ -56,7 +57,13 @@ public sealed class ServerLifecycleManager
             return false;
         }
 
-        JavaVersion javaVersion = JavaVersionUtils.GetInstalledJavaVersion(viewModel.Server.JavaSettings.JavaPath);
+        // Resolve the Java binary through the discovery service so the correct
+        // version is always used regardless of system PATH order.
+        string resolvedJavaPath = JavaDiscovery.Instance
+            .GetBestForMajor(viewModel.Server.JavaSettings.PreferredMajorVersion)
+            ?.BinaryPath ?? "java.exe";
+
+        JavaVersion javaVersion = JavaVersionUtils.GetInstalledJavaVersion(resolvedJavaPath);
         if (javaVersion == null)
         {
             ConsoleWriter.Write("ERROR: Java is not installed! Minecraft servers require Java!", viewModel);
@@ -144,7 +151,7 @@ public sealed class ServerLifecycleManager
             string guardArgs =
                 $"{pipeName} " +
                 $"\"{directoryInfo.FullName}\" " +
-                $"\"{viewModel.Server.JavaSettings.JavaPath}\" " +
+                $"\"{resolvedJavaPath}\" " +
                 $"{javaArguments}";
 
             process.StartInfo = new ProcessStartInfo
@@ -188,7 +195,7 @@ public sealed class ServerLifecycleManager
                 RedirectStandardError  = true,
                 RedirectStandardInput  = true,
                 RedirectStandardOutput = true,
-                FileName               = viewModel.Server.JavaSettings.JavaPath,
+                FileName               = resolvedJavaPath,
                 WorkingDirectory       = directoryInfo.FullName,
                 Arguments              = javaArguments,
                 CreateNoWindow         = true,

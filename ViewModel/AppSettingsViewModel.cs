@@ -16,8 +16,7 @@ namespace Fork.ViewModel;
 
 public class AppSettingsViewModel : BaseViewModel
 {
-    private string oldDefaultJavaPath;
-    private readonly Timer retryTimer = new() { Interval = 1000, AutoReset = true, Enabled = false };
+        private readonly Timer retryTimer = new() { Interval = 1000, AutoReset = true, Enabled = false };
 
     public AppSettingsViewModel(MainViewModel mainViewModel)
     {
@@ -65,17 +64,10 @@ public class AppSettingsViewModel : BaseViewModel
     public async Task OpenAppSettingsPage()
     {
         await ReadAppSettingsAsync();
-        oldDefaultJavaPath = AppSettings.DefaultJavaPath;
     }
 
     public async Task CloseAppSettingsPage()
     {
-        if (oldDefaultJavaPath != null && !oldDefaultJavaPath.Equals(AppSettings.DefaultJavaPath))
-        {
-            foreach (EntityViewModel entityViewModel in MainViewModel.Entities)
-                entityViewModel.UpdateDefaultJavaPath(oldDefaultJavaPath, AppSettings.DefaultJavaPath);
-        }
-
         await WriteAppSettingsAsync();
     }
 
