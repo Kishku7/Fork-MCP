@@ -145,6 +145,11 @@ Player list accuracy has been significantly improved across multiple areas:
 
 | Version | Highlights |
 |---------|------------|
+| 1.5.8 | Main window foregrounds itself on startup (Activate + Topmost toggle) — fixes an invisible window when Fork is launched via a scheduled task |
+| 1.5.7 | server.properties settings overhaul — 10 more real keys promoted to typed fields (region-file-compression & function-permission-level as dropdowns); Custom Properties section left-aligned and widened |
+| 1.5.6 | Offline-mode player labelling — "OM-" display prefix for offline (version-3 UUID) players, grouped together in the list, with an "Offline Mode User" context-menu title |
+| 1.5.5 | Player list ignores Minecraft `.dat_old` backup files (exact `.dat` match); malformed keys filtered out of Custom Properties |
+| 1.5.4 | Log-tail rotation fix — the re-attach console tailer now survives the log4j2 daily rollover, so console output and player state no longer freeze after the midnight log rotation |
 | 1.5.3 | Player list Online/Offline sections in UI; 8 new 26.x server.properties typed; Custom Properties section for unknown keys; Automation sidebar rename |
 | 1.5.2 | Startup player list fix for Minecraft 26.x — new path scan, usercache resolver, list_players shows all known players |
 | 1.5.1 | Per-server Java version selection — discovery service, major version dropdown, bump-version.ps1 corrected |
