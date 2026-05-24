@@ -145,6 +145,7 @@ Player list accuracy has been significantly improved across multiple areas:
 
 | Version | Highlights |
 |---------|------------|
+| 1.5.3 | Player list Online/Offline sections in UI; 8 new 26.x server.properties typed; Custom Properties section for unknown keys; Automation sidebar rename |
 | 1.5.2 | Startup player list fix for Minecraft 26.x — new path scan, usercache resolver, list_players shows all known players |
 | 1.5.1 | Per-server Java version selection — discovery service, major version dropdown, bump-version.ps1 corrected |
 | 1.5.0 | Accurate online player tracking — race condition fix, unknown player recovery, real-time join/leave |
