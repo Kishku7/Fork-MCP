@@ -11,7 +11,7 @@ public class SendCommandTool
 {
     [McpServerTool, Description(
         "Send a console command to a running Minecraft server. " +
-        "Do NOT prefix with '/'. Examples: 'say Hello world', 'stop', 'whitelist add Steve', 'op Dave'.")]
+        "Do NOT prefix with '/'. Examples: 'say Hello world', 'stop', 'whitelist add Steve', 'op Alex'.")]
     public static string SendCommand(
         [Description("The server name exactly as shown in Fork.")] string serverName,
         [Description("The command to send (no leading slash).")] string command)

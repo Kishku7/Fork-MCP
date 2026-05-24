@@ -26,6 +26,18 @@ public partial class MainWindow : Window
         Closing += OnMainWindowClose;
         viewModel = ApplicationManager.Instance.MainViewModel;
         DataContext = viewModel;
+
+        // Surface the window to the foreground on launch. When Fork is started by a
+        // scheduled task it would otherwise come up unfocused / behind, so the user sees
+        // no window; bring it to the front here.
+        Loaded += (_, _) =>
+        {
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
+            Activate();
+            Topmost = true;
+            Topmost = false;
+        };
     }
 
     private void OpenAppSettings_Click(object sender, RoutedEventArgs e)

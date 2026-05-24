@@ -32,14 +32,14 @@
                 </TextBlock>
 
                 <!-- Key/value rows -->
-                <ItemsControl ItemsSource="{Binding Server.ServerSettings.UnknownProperties}" MaxWidth="560">
+                <ItemsControl ItemsSource="{Binding Server.ServerSettings.UnknownProperties}" HorizontalAlignment="Left">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0 4 0 4">
+                            <Grid Margin="0 4 0 4" HorizontalAlignment="Left">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="200" />
+                                    <ColumnDefinition Width="240" />
                                     <ColumnDefinition Width="10" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="460" />
                                 </Grid.ColumnDefinitions>
                                 <!-- Key (read-only label) -->
                                 <Border Grid.Column="0" CornerRadius="4" Height="26"

@@ -54,6 +54,19 @@
                               Style="{DynamicResource TextCheckBox}" FontSize="20" Grid.Row="4" Grid.Column="1"
                               Margin="20 0 0 0" />
                 </Grid>
+                <!-- Additional 26.x checkboxes -->
+                <Grid Margin="0 10 0 0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Content="Enforce Secure Profile"
+                              IsChecked="{Binding Server.ServerSettings.EnforceSecureProfile}"
+                              Style="{DynamicResource TextCheckBox}" FontSize="20" Margin="0 0 20 0" />
+                    <CheckBox Content="Code of Conduct"
+                              IsChecked="{Binding Server.ServerSettings.EnableCodeOfConduct}"
+                              Style="{DynamicResource TextCheckBox}" FontSize="20" Grid.Column="1" Margin="20 0 0 0" />
+                </Grid>
                 <!-- RCon section (visible only when enableRcon is checked) -->
                 <StackPanel Margin="0 20 0 0">
                     <CheckBox IsChecked="{Binding Server.ServerSettings.BcastRconToOps}"
@@ -159,6 +172,87 @@
                         <TextBlock Text="Pause When Empty (s)" TextAlignment="Right"
                                    Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 0" />
                     </DockPanel>
+                </StackPanel>
+                <!-- Promoted settings: compression, function level, filtering, packs -->
+                <StackPanel Margin="0 20 0 0" MaxWidth="400">
+                    <DockPanel Height="40">
+                        <ComboBox DockPanel.Dock="Right" SelectedIndex="0" Width="150" HorizontalAlignment="Left"
+                                  ItemContainerStyle="{DynamicResource DefaultComboBoxItem}"
+                                  FontFamily="{DynamicResource Montserrat-Bold}" FontSize="17" VerticalAlignment="Center"
+                                  ItemsSource="{Binding Server.ServerSettings.RegionFileCompressions}"
+                                  SelectedItem="{Binding Server.ServerSettings.CurrRegionFileCompression}" />
+                        <TextBlock Text="Region File Compression" TextAlignment="Right"
+                                   Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 0" />
+                    </DockPanel>
+                    <DockPanel Height="40">
+                        <ComboBox DockPanel.Dock="Right" SelectedIndex="0" Width="150" HorizontalAlignment="Left"
+                                  ItemContainerStyle="{DynamicResource DefaultComboBoxItem}"
+                                  FontFamily="{DynamicResource Montserrat-Bold}" FontSize="17" VerticalAlignment="Center"
+                                  ItemsSource="{Binding Server.ServerSettings.PermissionLevels}"
+                                  SelectedItem="{Binding Server.ServerSettings.FunctionPermissionLevel}" />
+                        <TextBlock Text="Function Permission Level" TextAlignment="Right"
+                                   Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 0" />
+                    </DockPanel>
+                    <DockPanel Height="40">
+                        <Border CornerRadius="4" Width="120" DockPanel.Dock="Right" Height="26"
+                                Background="{DynamicResource textBackground}">
+                            <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.MaxChainedNeighborUpdates}"
+                                     Background="{DynamicResource textBackground}" BorderThickness="0"
+                                     Foreground="{DynamicResource backgroundDark}"
+                                     FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="17" Height="20" />
+                        </Border>
+                        <TextBlock Text="Max Chained Neighbor Updates" TextAlignment="Right"
+                                   Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 0" />
+                    </DockPanel>
+                    <DockPanel Height="40">
+                        <Border CornerRadius="4" Width="120" DockPanel.Dock="Right" Height="26"
+                                Background="{DynamicResource textBackground}">
+                            <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.StatusHeartbeatInterval}"
+                                     Background="{DynamicResource textBackground}" BorderThickness="0"
+                                     Foreground="{DynamicResource backgroundDark}"
+                                     FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="17" Height="20" />
+                        </Border>
+                        <TextBlock Text="Status Heartbeat Interval" TextAlignment="Right"
+                                   Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 0" />
+                    </DockPanel>
+                    <DockPanel Height="40">
+                        <Border CornerRadius="4" Width="120" DockPanel.Dock="Right" Height="26"
+                                Background="{DynamicResource textBackground}">
+                            <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.TextFilteringVersion}"
+                                     Background="{DynamicResource textBackground}" BorderThickness="0"
+                                     Foreground="{DynamicResource backgroundDark}"
+                                     FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="17" Height="20" />
+                        </Border>
+                        <TextBlock Text="Text Filtering Version" TextAlignment="Right"
+                                   Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 0" />
+                    </DockPanel>
+                </StackPanel>
+                <StackPanel Margin="0 10 0 0" MaxWidth="450">
+                    <TextBlock Text="Initial Enabled Packs" Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 5" />
+                    <Border CornerRadius="4" Height="26" Background="{DynamicResource textBackground}">
+                        <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.InitialEnabledPacks}"
+                                 Background="{DynamicResource textBackground}" BorderThickness="0"
+                                 Foreground="{DynamicResource backgroundDark}"
+                                 FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="17" Height="20" />
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0 10 0 0" MaxWidth="450">
+                    <TextBlock Text="Initial Disabled Packs" Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 5" />
+                    <Border CornerRadius="4" Height="26" Background="{DynamicResource textBackground}">
+                        <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.InitialDisabledPacks}"
+                                 Background="{DynamicResource textBackground}" BorderThickness="0"
+                                 Foreground="{DynamicResource backgroundDark}"
+                                 FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="17" Height="20" />
+                    </Border>
+                </StackPanel>
+                <StackPanel Margin="0 10 0 0" MaxWidth="450">
+                    <TextBlock Text="Text Filtering Config" Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 5" />
+                    <Border CornerRadius="4" Height="26" Background="{DynamicResource textBackground}">
+                        <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.TextFilteringConfig}"
+                                 Background="{DynamicResource textBackground}" BorderThickness="0"
+                                 Foreground="{DynamicResource backgroundDark}"
+                                 FontFamily="{DynamicResource Montserrat-SemiBold}" FontSize="17" Height="20" />
+                    </Border>
                 </StackPanel>
                 <!-- Bug report link -->
                 <StackPanel Margin="0 10 0 0" MaxWidth="450">

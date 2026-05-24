@@ -30,6 +30,10 @@
             <CollectionViewSource.SortDescriptions>
                 <!-- Descending: True (online) before False (offline) -->
                 <scm:SortDescription PropertyName="IsOnline" Direction="Descending" />
+                <!-- Cluster offline-mode (OM-) users together, after normal users -->
+                <scm:SortDescription PropertyName="IsOfflineMode" Direction="Ascending" />
+                <scm:SortDescription PropertyName="IsOP" Direction="Descending" />
+                <scm:SortDescription PropertyName="DisplayName" Direction="Ascending" />
             </CollectionViewSource.SortDescriptions>
             <CollectionViewSource.GroupDescriptions>
                 <PropertyGroupDescription PropertyName="IsOnline" />
@@ -166,13 +170,16 @@
                                                                     CornerRadius="7" Visibility="Hidden" />
                                                         </Grid>
                                                     </Border>
-                                                    <TextBlock x:Name="text" Text="{Binding Player.Name}"
+                                                    <TextBlock x:Name="text" Text="{Binding DisplayName}"
                                                                VerticalAlignment="Center"
                                                                Foreground="{DynamicResource textSelected}"
                                                                FontSize="14" Margin="5 0 0 0" />
                                                 </DockPanel>
                                                 <Border.ContextMenu>
                                                     <ContextMenu x:Name="WhitelistContextMenu">
+                                                        <MenuItem Header="Offline Mode User" IsEnabled="False" FontWeight="Bold"
+                                                                  Visibility="{Binding IsOfflineMode, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                        <Separator Visibility="{Binding IsOfflineMode, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                         <MenuItem Header="Ban Player" Click="Player_Ban"
                                                                   CommandParameter="{Binding Player.Name}"
                                                                   IsEnabled="{Binding Data.ServerRunning, Source={StaticResource ServerRunningBinding}}"

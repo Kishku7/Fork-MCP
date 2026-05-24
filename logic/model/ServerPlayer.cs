@@ -21,6 +21,12 @@ public class ServerPlayer : IComparable<ServerPlayer>, IEquatable<ServerPlayer>,
     public bool IsOP { get; set; }
     public bool IsOnline { get; set; }
 
+    /// <summary>True when the wrapped player has an offline-mode (v3) UUID. Used for UI labelling + sorting.</summary>
+    public bool IsOfflineMode => Player?.IsOfflineMode ?? false;
+
+    /// <summary>Display name with an "OM-" prefix for offline-mode players (display only).</summary>
+    public string DisplayName => Player?.DisplayName;
+
 
     public int CompareTo(ServerPlayer other)
     {

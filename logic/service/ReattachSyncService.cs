@@ -86,8 +86,8 @@ public static class ReattachSyncService
             if (e.NewItems == null) return;
             foreach (ConsoleMessage msg in e.NewItems)
             {
-                // Matches: "There are 2 of a max of 20 players online: Dave, Jeff"
-                // and the singular: "There is 1 of a max of 20 player online: Dave"
+                // Matches: "There are 2 of a max of 20 players online: Steve, Alex"
+                // and the singular: "There is 1 of a max of 20 player online: Steve"
                 if (msg.Content.Contains("players online:", StringComparison.OrdinalIgnoreCase) ||
                     msg.Content.Contains("player online:",  StringComparison.OrdinalIgnoreCase))
                 {

@@ -35,6 +35,13 @@ public class ServerSettings
         Buffet
     }
 
+    public enum RegionFileCompression
+    {
+        Deflate,
+        Lz4,
+        None
+    }
+
     public ServerSettings(string levelname)
     {
         SettingsDictionary = new ObservableDictionary<string, string>();
@@ -134,9 +141,21 @@ public class ServerSettings
         // 1.21.4+
         PauseWhenEmptySeconds = 0;
 
+        // Promoted from custom (real MC settings) - 2026-05-24
+        EnforceSecureProfile = true;
+        FunctionPermissionLevel = 2;
+        InitialEnabledPacks = "vanilla";
+        InitialDisabledPacks = "";
+        MaxChainedNeighborUpdates = 1000000;
+        TextFilteringConfig = "";
+        TextFilteringVersion = 0;
+        StatusHeartbeatInterval = 0;
+        EnableCodeOfConduct = false;
+
         CurrGamemode = Gamemode.Survival;
         CurrDifficulty = Difficulty.Easy;
         CurrLevelType = LevelType.Default;
+        CurrRegionFileCompression = RegionFileCompression.Deflate;
     }
 
     #region Properties
@@ -144,6 +163,8 @@ public class ServerSettings
     public List<Difficulty> Difficulties { get; } = new(Enum.GetValues(typeof(Difficulty)).Cast<Difficulty>());
     public List<Gamemode> Gamemodes { get; } = new(Enum.GetValues(typeof(Gamemode)).Cast<Gamemode>());
     public List<LevelType> LevelTypes { get; } = new(Enum.GetValues(typeof(LevelType)).Cast<LevelType>());
+    public List<RegionFileCompression> RegionFileCompressions { get; } = new(Enum.GetValues(typeof(RegionFileCompression)).Cast<RegionFileCompression>());
+    public List<int> PermissionLevels { get; } = new() { 1, 2, 3, 4 };
 
     public ObservableDictionary<string, string> SettingsDictionary { get; }
     public bool HasChanged { get; set; }
@@ -506,6 +527,80 @@ public class ServerSettings
         set => SettingsDictionary["pause-when-empty-seconds"] = value.ToString();
     }
 
+    // ── Promoted from Custom Properties (real MC settings) - 2026-05-24 ──
+
+    /// <summary>1.19+ - Require Mojang-signed chat (secure profile).</summary>
+    public bool EnforceSecureProfile
+    {
+        get => bool.Parse(SettingsDictionary["enforce-secure-profile"]);
+        set => SettingsDictionary["enforce-secure-profile"] = value.ToString().ToLower();
+    }
+
+    /// <summary>Permission level required to run functions/datapack commands (1-4).</summary>
+    public int FunctionPermissionLevel
+    {
+        get => int.Parse(SettingsDictionary["function-permission-level"]);
+        set => SettingsDictionary["function-permission-level"] = value.ToString();
+    }
+
+    /// <summary>1.19.3+ - Data packs enabled on world creation (comma-separated).</summary>
+    public string InitialEnabledPacks
+    {
+        get => SettingsDictionary["initial-enabled-packs"];
+        set => SettingsDictionary["initial-enabled-packs"] = value;
+    }
+
+    /// <summary>1.19.3+ - Data packs disabled on world creation (comma-separated).</summary>
+    public string InitialDisabledPacks
+    {
+        get => SettingsDictionary["initial-disabled-packs"];
+        set => SettingsDictionary["initial-disabled-packs"] = value;
+    }
+
+    /// <summary>1.19+ - Cap on chained neighbour block updates (anti-lag).</summary>
+    public int MaxChainedNeighborUpdates
+    {
+        get => int.Parse(SettingsDictionary["max-chained-neighbor-updates"]);
+        set => SettingsDictionary["max-chained-neighbor-updates"] = value.ToString();
+    }
+
+    /// <summary>1.20.5+ - Region file compression algorithm (deflate/lz4/none).</summary>
+    public RegionFileCompression CurrRegionFileCompression
+    {
+        get => (RegionFileCompression)Enum.Parse(typeof(RegionFileCompression),
+            SettingsDictionary["region-file-compression"].First().ToString().ToUpper() +
+            SettingsDictionary["region-file-compression"].Substring(1));
+        set => SettingsDictionary["region-file-compression"] = value.ToString().ToLower();
+    }
+
+    /// <summary>Chat text filtering config string (server-specific).</summary>
+    public string TextFilteringConfig
+    {
+        get => SettingsDictionary["text-filtering-config"];
+        set => SettingsDictionary["text-filtering-config"] = value;
+    }
+
+    /// <summary>Text filtering version integer.</summary>
+    public int TextFilteringVersion
+    {
+        get => int.Parse(SettingsDictionary["text-filtering-version"]);
+        set => SettingsDictionary["text-filtering-version"] = value.ToString();
+    }
+
+    /// <summary>26.x - Management server heartbeat interval in seconds (0 = disabled).</summary>
+    public int StatusHeartbeatInterval
+    {
+        get => int.Parse(SettingsDictionary["status-heartbeat-interval"]);
+        set => SettingsDictionary["status-heartbeat-interval"] = value.ToString();
+    }
+
+    /// <summary>26.x - Show a server code of conduct to players on join.</summary>
+    public bool EnableCodeOfConduct
+    {
+        get => bool.Parse(SettingsDictionary["enable-code-of-conduct"]);
+        set => SettingsDictionary["enable-code-of-conduct"] = value.ToString().ToLower();
+    }
+
     // ── Unknown / custom properties ────────────────────────────────────────────
 
     /// <summary>
@@ -530,6 +625,11 @@ public class ServerSettings
         "hide-online-players", "simulation-distance", "bug-report-link",
         "resource-pack-id", "resource-pack-prompt", "log-ips",
         "accepts-transfers", "pause-when-empty-seconds",
+        // promoted from custom (2026-05-24)
+        "enforce-secure-profile", "function-permission-level", "initial-enabled-packs",
+        "initial-disabled-packs", "max-chained-neighbor-updates", "region-file-compression",
+        "text-filtering-config", "text-filtering-version", "status-heartbeat-interval",
+        "enable-code-of-conduct",
     };
 
     /// <summary>
@@ -537,9 +637,20 @@ public class ServerSettings
     ///     typed property for. Editable from the UI; changes go directly into
     ///     <see cref="SettingsDictionary"/> and are saved on the next write cycle.
     /// </summary>
+    private static readonly System.Text.RegularExpressions.Regex ValidCustomKeyRegex =
+        new(@"^[A-Za-z0-9._-]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    ///     Guards the Custom Properties list against malformed entries - e.g. a
+    ///     server.properties comment header ("#Minecraft server properties") mis-ingested
+    ///     and persisted as a key. A real property key contains only letters, digits,
+    ///     '.', '-' or '_'.
+    /// </summary>
+    private static bool IsValidCustomKey(string key) => ValidCustomKeyRegex.IsMatch(key ?? string.Empty);
+
     public IEnumerable<KeyValuePair<string, string>> UnknownSettings =>
         SettingsDictionary
-            .Where(kv => !KnownKeys.Contains(kv.Key))
+            .Where(kv => !KnownKeys.Contains(kv.Key) && IsValidCustomKey(kv.Key))
             .OrderBy(kv => kv.Key);
 
     // ── Unknown properties — observable, two-way bindable ────────────────────
@@ -559,7 +670,7 @@ public class ServerSettings
 
     private ObservableCollection<SettingKeyValuePair> BuildUnknownProperties()
         => new(SettingsDictionary
-            .Where(kv => !KnownKeys.Contains(kv.Key))
+            .Where(kv => !KnownKeys.Contains(kv.Key) && IsValidCustomKey(kv.Key))
             .OrderBy(kv => kv.Key)
             .Select(kv => new SettingKeyValuePair(kv.Key, SettingsDictionary)));
 

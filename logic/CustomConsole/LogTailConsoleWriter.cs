@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using Fork.Logic.Model;
 using Fork.Logic.Model.ServerConsole;
@@ -13,9 +14,27 @@ namespace Fork.Logic.CustomConsole;
 /// Tails a log file and feeds new lines into a server's console view.
 /// Used when Fork re-attaches to a server via ForkGuard after a restart —
 /// the original stdout pipe is gone, so we tail logs/latest.log instead.
+///
+/// <para>
+/// <b>Rotation-safe.</b> The file is re-opened <i>by path</i> on every poll
+/// cycle and the consumed byte offset is tracked manually. When log4j2 rolls
+/// latest.log over (e.g. at the midnight date boundary it renames the live file
+/// to a dated <c>.log.gz</c> and creates a fresh empty <c>latest.log</c>), a
+/// long-held file handle would keep reading the now-frozen old file forever.
+/// By re-resolving the path each cycle and detecting the rollover via a
+/// length-shrink, the tailer transparently re-attaches to the new file and
+/// replays everything written since the rollover — which keeps console output
+/// flowing and re-syncs player join/leave state instead of silently freezing.
+/// </para>
 /// </summary>
 public static class LogTailConsoleWriter
 {
+    /// <summary>Poll interval (ms) while waiting for new data / checking for rotation.</summary>
+    private const int PollMs = 200;
+
+    /// <summary>Max bytes read per cycle, so a large backlog can't blow up memory.</summary>
+    private const int MaxChunkBytes = 1 << 20; // 1 MiB
+
     /// <summary>
     /// Starts tailing <paramref name="logFile"/> in the background.
     /// <para>
@@ -47,7 +66,9 @@ public static class LogTailConsoleWriter
                 // ── Step 1: Backfill historical lines ─────────────────────────────
                 // Read the whole file and display the last maxLines entries so the
                 // user can see recent output without replaying the full log through
-                // the event pipeline.
+                // the event pipeline.  Record the byte offset we have consumed up to
+                // so the tail loop resumes from exactly there.
+                long position = 0;
                 var history = new List<string>();
                 try
                 {
@@ -57,10 +78,12 @@ public static class LogTailConsoleWriter
                     string? bl;
                     while ((bl = backfillReader.ReadLine()) != null)
                         history.Add(bl);
+                    position = backfillFs.Length; // resume tailing from current EOF
                 }
                 catch
                 {
-                    // File vanished or locked mid-read — skip backfill, start from end.
+                    // File vanished or locked mid-read — skip backfill, start from 0.
+                    position = 0;
                 }
 
                 int startIdx = Math.Max(0, history.Count - maxLines);
@@ -69,44 +92,112 @@ public static class LogTailConsoleWriter
 
                 history.Clear(); // release memory before entering the tail loop
 
-                // ── Step 2: Tail — open at EOF, process only new lines ────────────
-                // Open with shared read/write so Minecraft can still write while we read.
-                using var fs = new FileStream(logFile, FileMode.Open, FileAccess.Read,
-                    FileShare.ReadWrite | FileShare.Delete);
-                using var reader = new StreamReader(fs);
-
-                // Seek to end — backfill already displayed history.
-                fs.Seek(0, SeekOrigin.End);
-
-                // Backfill is complete. All lines from this point forward are new and
-                // eligible for per-line event processing via RoleInputHandler.
-                bool catchupComplete = true;
-
+                // ── Step 2: Tail — rotation-aware, byte-offset based ──────────────
+                // Each cycle we re-open the path (so we always read whatever file
+                // currently lives at logFile, including a freshly rolled latest.log)
+                // and read only complete lines beyond `position`.
                 while (viewModel.CurrentStatus != ServerStatus.STOPPED)
                 {
-                    string? line = reader.ReadLine();
-                    if (line is null)
+                    long length;
+                    try
                     {
-                        Thread.Sleep(100);
+                        var fi = new FileInfo(logFile);
+                        if (!fi.Exists)
+                        {
+                            // Brief gap during rotation (old renamed, new not yet created).
+                            Thread.Sleep(PollMs);
+                            continue;
+                        }
+                        length = fi.Length;
+                    }
+                    catch
+                    {
+                        Thread.Sleep(PollMs);
                         continue;
                     }
 
-                    bool isSuccess = false;
-                    if (line.Contains("For help, type \"help\""))
+                    // Rotation / truncation: the file now at this path is shorter than
+                    // what we have already consumed → it was replaced. Re-attach to the
+                    // new file from its start so nothing written since the rollover is
+                    // missed (this also replays join/leave events so player state
+                    // re-syncs after the gap).
+                    if (length < position)
                     {
-                        viewModel.CurrentStatus = ServerStatus.RUNNING;
-                        isSuccess = true;
+                        ConsoleWriter.Write(
+                            "[ForkGuard] Detected log rotation — re-attaching tail to new latest.log.",
+                            viewModel);
+                        position = 0;
                     }
 
-                    // RoleInputHandler fires for new lines only (post-backfill).
-                    // This detects join/leave, whitelist, ban, and op events in real time.
-                    // catchupComplete is always true here; the flag is kept for clarity.
-                    if (catchupComplete && viewModel is ServerViewModel sv)
-                        sv.RoleInputHandler(line);
+                    if (length == position)
+                    {
+                        Thread.Sleep(PollMs);
+                        continue;
+                    }
 
-                    viewModel.AddToConsole(isSuccess
-                        ? new ConsoleMessage(line, ConsoleMessage.MessageLevel.SUCCESS)
-                        : new ConsoleMessage(line));
+                    // Read everything new, but only up to the last complete line — the
+                    // file may end mid-line while Minecraft is still writing it.
+                    string chunk;
+                    long consumed;
+                    try
+                    {
+                        using var fs = new FileStream(logFile, FileMode.Open, FileAccess.Read,
+                            FileShare.ReadWrite | FileShare.Delete);
+                        fs.Seek(position, SeekOrigin.Begin);
+
+                        int toRead = (int)Math.Min(length - position, MaxChunkBytes);
+                        var buffer = new byte[toRead];
+                        int read = fs.Read(buffer, 0, toRead);
+                        if (read <= 0)
+                        {
+                            // Seek landed past EOF (e.g. file replaced between the
+                            // length check and the open) — let the next cycle detect it.
+                            Thread.Sleep(PollMs);
+                            continue;
+                        }
+
+                        int lastNewline = Array.LastIndexOf(buffer, (byte)'\n', read - 1);
+                        if (lastNewline < 0)
+                        {
+                            // No complete line available yet — wait for more bytes.
+                            Thread.Sleep(PollMs);
+                            continue;
+                        }
+
+                        chunk = Encoding.UTF8.GetString(buffer, 0, lastNewline + 1);
+                        consumed = lastNewline + 1; // bytes up to and including last '\n'
+                    }
+                    catch
+                    {
+                        Thread.Sleep(PollMs);
+                        continue;
+                    }
+
+                    position += consumed;
+
+                    foreach (string raw in chunk.Split('\n'))
+                    {
+                        // Split on '\n' yields a trailing empty element after the final
+                        // newline; TrimEnd removes the '\r' on CRLF files.
+                        string line = raw.TrimEnd('\r');
+                        if (line.Length == 0) continue;
+
+                        bool isSuccess = false;
+                        if (line.Contains("For help, type \"help\""))
+                        {
+                            viewModel.CurrentStatus = ServerStatus.RUNNING;
+                            isSuccess = true;
+                        }
+
+                        // RoleInputHandler fires for new lines only (post-backfill).
+                        // This detects join/leave, whitelist, ban, and op events in real time.
+                        if (viewModel is ServerViewModel sv)
+                            sv.RoleInputHandler(line);
+
+                        viewModel.AddToConsole(isSuccess
+                            ? new ConsoleMessage(line, ConsoleMessage.MessageLevel.SUCCESS)
+                            : new ConsoleMessage(line));
+                    }
                 }
             }
             catch (Exception ex)

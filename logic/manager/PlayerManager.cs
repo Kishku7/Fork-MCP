@@ -188,6 +188,10 @@ public sealed class PlayerManager
         if (legacy.Exists)
             foreach (string f in Directory.GetFiles(legacy.FullName, "*.dat", SearchOption.TopDirectoryOnly))
             {
+                // Skip Minecraft backup files (<uuid>.dat_old) and any non-exact ".dat" match.
+                // Directory.GetFiles("*.dat") can return ".dat_old" on some runtimes due to the
+                // legacy 3-char extension wildcard; require an exact ".dat" extension.
+                if (!Path.GetExtension(f).Equals(".dat", StringComparison.OrdinalIgnoreCase)) continue;
                 string uuid = Path.GetFileNameWithoutExtension(f).Replace("-", "");
                 if (ValidateUuid(uuid)) results.Add(uuid);
             }
@@ -197,6 +201,10 @@ public sealed class PlayerManager
         if (modern.Exists)
             foreach (string f in Directory.GetFiles(modern.FullName, "*.dat", SearchOption.TopDirectoryOnly))
             {
+                // Skip Minecraft backup files (<uuid>.dat_old) and any non-exact ".dat" match.
+                // Directory.GetFiles("*.dat") can return ".dat_old" on some runtimes due to the
+                // legacy 3-char extension wildcard; require an exact ".dat" extension.
+                if (!Path.GetExtension(f).Equals(".dat", StringComparison.OrdinalIgnoreCase)) continue;
                 string uuid = Path.GetFileNameWithoutExtension(f).Replace("-", "");
                 if (ValidateUuid(uuid)) results.Add(uuid);
             }
