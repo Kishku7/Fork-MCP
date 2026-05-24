@@ -9,3 +9,5 @@ NihilusInstaller
 Properties/PublishProfiles
 
 scripts/git_push.py
+
+publish/

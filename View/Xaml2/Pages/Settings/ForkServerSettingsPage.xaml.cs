@@ -44,7 +44,7 @@ public partial class ForkServerSettingsPage : Page, ISettingsPage
     }
 
     public SettingsFile SettingsFile { get; set; }
-    public string FileName => "Settings";
+    public string FileName => "Automation";
     public string FileExtension => "";
 
     public async Task SaveSettings()

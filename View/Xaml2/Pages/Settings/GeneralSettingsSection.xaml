@@ -117,6 +117,10 @@
                     <CheckBox Content="Enable Query" IsChecked="{Binding Server.ServerSettings.EnableQuery}"
                               Style="{DynamicResource TextCheckBox}" FontSize="20" Grid.Row="4" Grid.Column="1"
                               Margin="20 0 0 0" />
+                    <CheckBox Content="Hide Player Count"
+                              IsChecked="{Binding Server.ServerSettings.HideOnlinePlayers}"
+                              Style="{DynamicResource TextCheckBox}" FontSize="20" Grid.Row="5" Grid.Column="1"
+                              Margin="20 0 0 0" />
                 </Grid>
                 <!-- Spawn protection / view distance / entity broadcast range -->
                 <Grid Margin="0 10">
@@ -128,6 +132,7 @@
                                 <ColumnDefinition />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="40" />
                                 <RowDefinition Height="40" />
                                 <RowDefinition Height="40" />
                                 <RowDefinition Height="40" />
@@ -155,9 +160,21 @@
                             </Border>
                             <TextBlock Grid.Row="1" Grid.Column="2" Text="Chunks"
                                        Style="{DynamicResource CreateServerTextBlock}" />
-                            <TextBlock Grid.Row="2" Text="Entity Broadcast Range" TextAlignment="Right"
+                            <TextBlock Grid.Row="2" Text="Simulation Distance" TextAlignment="Right"
                                        Style="{DynamicResource CreateServerTextBlock}" />
                             <Border Grid.Row="2" Grid.Column="1" Margin="10 0 3 0" CornerRadius="4" Width="42"
+                                    Height="26" Background="{DynamicResource textBackground}">
+                                <TextBox Text="{Binding Server.ServerSettings.SimulationDistance}"
+                                         Background="{DynamicResource textBackground}" BorderThickness="0"
+                                         Foreground="{DynamicResource backgroundDark}" Margin="5 0"
+                                         FontFamily="{DynamicResource Montserrat-SemiBold}"
+                                         FontSize="17" Height="20" />
+                            </Border>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Chunks"
+                                       Style="{DynamicResource CreateServerTextBlock}" />
+                            <TextBlock Grid.Row="3" Text="Entity Broadcast Range" TextAlignment="Right"
+                                       Style="{DynamicResource CreateServerTextBlock}" />
+                            <Border Grid.Row="3" Grid.Column="1" Margin="10 0 3 0" CornerRadius="4" Width="42"
                                     Height="26" Background="{DynamicResource textBackground}">
                                 <TextBox Text="{Binding Server.ServerSettings.EntityBroadcastRangePercentage}"
                                          Background="{DynamicResource textBackground}" BorderThickness="0"
@@ -165,7 +182,7 @@
                                          FontFamily="{DynamicResource Montserrat-SemiBold}"
                                          FontSize="17" Height="20" />
                             </Border>
-                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Percent"
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="Percent"
                                        Style="{DynamicResource CreateServerTextBlock}" />
                         </Grid>
                     </StackPanel>

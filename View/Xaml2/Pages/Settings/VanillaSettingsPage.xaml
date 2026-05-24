@@ -19,6 +19,7 @@
                 <settings:ServerAppearanceSection />
                 <settings:AdvancedSettingsSection />
                 <settings:JavaNetworkingSection />
+                <settings:UnknownPropertiesSection />
             </controls:StretchyWrapPanel>
         </ScrollViewer>
         <TextBlock Grid.Row="1" Text="All Changes will be saved automatically" HorizontalAlignment="Center" />

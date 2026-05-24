@@ -24,10 +24,10 @@ public sealed class ApplicationManager
 
     public delegate void ServerListEventHandler(object sender, EventArgs e);
 
-    // Canonical version ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â update here when releasing a new build.
+    // Canonical version ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â update here when releasing a new build.
     // We don't read this from AssemblyInformationalVersion because the WPF designer
     // temp project auto-generates that attribute and conflicts with AssemblyInfo.cs.
-    private const string ForkVersionString = "1.5.2";
+    private const string ForkVersionString = "1.5.3";
 
     private static string userAgent;
 
@@ -123,7 +123,7 @@ public sealed class ApplicationManager
 
     public void ExitApplication()
     {
-        // Stop running servers gracefully ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â but skip ForkGuard-managed servers.
+        // Stop running servers gracefully ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â but skip ForkGuard-managed servers.
         // A server is guarded when fork-guard.marker exists in its directory;
         // those servers are designed to outlive Fork and should not be stopped
         // on exit. Stopping them here would defeat the entire purpose of ForkGuard.
@@ -132,7 +132,7 @@ public sealed class ApplicationManager
             if (vm.CurrentStatus == ServerStatus.STOPPED) continue;
 
             string marker = Path.Combine(App.ServerPath, vm.Name, "fork-guard.marker");
-            if (File.Exists(marker)) continue; // guarded ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â intentionally survives Fork exit
+            if (File.Exists(marker)) continue; // guarded ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â intentionally survives Fork exit
 
             ServerLifecycleManager.Instance.StopServer(vm);
         }
@@ -141,7 +141,7 @@ public sealed class ApplicationManager
         // Guarded servers are excluded from both the wait and the kill:
         //   - For ForkGuard-started servers: ActiveEntities holds the ForkGuard process.
         //     Killing ForkGuard closes its Job Object handle, which kills Java via
-        //     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â exactly what we must NOT do.
+        //     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â exactly what we must NOT do.
         //   - For re-attached servers: ActiveEntities holds the Java process directly.
         //     Killing it stops the server that should survive.
         var processesToEnd = ActiveEntities

@@ -27,12 +27,42 @@
                           Style="{DynamicResource TextCheckBox}" FontSize="20" Margin="10 5 0 0" />
                 <StackPanel
                     Visibility="{Binding Server.AutoSetSha1, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                    <TextBlock Text="Resource Pack UUID (1.19.4+)"
+                               Style="{DynamicResource CreateServerTextBlock}" Margin="40 10 10 0" />
+                    <Border CornerRadius="4" Width="510" Height="26"
+                            Background="{DynamicResource textBackground}" Margin="40 5 0 5"
+                            HorizontalAlignment="Left">
+                        <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.ResourcePackId}"
+                                 Background="{DynamicResource textBackground}" BorderThickness="0"
+                                 Foreground="{DynamicResource backgroundDark}"
+                                 FontFamily="{DynamicResource Montserrat-SemiBold}"
+                                 FontSize="17" Height="20" />
+                    </Border>
+                </StackPanel>
+                <StackPanel
+                    Visibility="{Binding Server.AutoSetSha1, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                     <TextBlock Text="Server Resource Pack SHA-1"
                                Style="{DynamicResource CreateServerTextBlock}" Margin="40 10 10 0" />
                     <Border CornerRadius="4" Width="510" Height="26"
                             Background="{DynamicResource textBackground}" Margin="40 5 0 5"
                             HorizontalAlignment="Left">
                         <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.ResourcePackSha1}"
+                                 Background="{DynamicResource textBackground}" BorderThickness="0"
+                                 Foreground="{DynamicResource backgroundDark}"
+                                 FontFamily="{DynamicResource Montserrat-SemiBold}"
+                                 FontSize="17" Height="20" />
+                    </Border>
+                </StackPanel>
+                <CheckBox Content="Require Resource Pack"
+                          IsChecked="{Binding Server.ServerSettings.RequireResourcePack}"
+                          Style="{DynamicResource TextCheckBox}" FontSize="20" Margin="10 10 0 0" />
+                <StackPanel HorizontalAlignment="Left" Margin="10 5 0 0" MaxWidth="540">
+                    <TextBlock Text="Resource Pack Prompt (1.19.4+, JSON text)"
+                               Style="{DynamicResource CreateServerTextBlock}" Margin="0 0 10 5" />
+                    <Border CornerRadius="4" Width="510" Height="26"
+                            Background="{DynamicResource textBackground}"
+                            HorizontalAlignment="Left">
+                        <TextBox Margin="5 0" Text="{Binding Server.ServerSettings.ResourcePackPrompt}"
                                  Background="{DynamicResource textBackground}" BorderThickness="0"
                                  Foreground="{DynamicResource backgroundDark}"
                                  FontFamily="{DynamicResource Montserrat-SemiBold}"

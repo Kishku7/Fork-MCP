@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Fork.Logic.Utils;
 
 namespace Fork.Logic.Model;
@@ -57,6 +60,9 @@ public class ServerSettings
             SettingsDictionary[keyValuePair.Key] = keyValuePair.Value;
 
         SettingsDictionary.CollectionChanged += (_, _) => { HasChanged = true; };
+
+        // Populate unknown properties now that all keys are loaded from file.
+        RefreshUnknownProperties();
     }
 
     private void InitializeValues(string levelname)
@@ -111,6 +117,22 @@ public class ServerSettings
         EnableStatus = true;
         RequireResourcePack = false;
         EntityBroadcastRangePercentage = 100;
+
+        // 1.16.5+
+        HideOnlinePlayers = false;
+        // 1.18+
+        SimulationDistance = 10;
+        // 1.19.1+
+        BugReportLink = "";
+        // 1.19.4+
+        ResourcePackId = "";
+        ResourcePackPrompt = "";
+        // 1.20.2+
+        LogIps = true;
+        // 1.20.5+
+        AcceptsTransfers = false;
+        // 1.21.4+
+        PauseWhenEmptySeconds = 0;
 
         CurrGamemode = Gamemode.Survival;
         CurrDifficulty = Difficulty.Easy;
@@ -426,5 +448,154 @@ public class ServerSettings
         set => SettingsDictionary["entity-broadcast-range-percentage"] = value.ToString();
     }
 
+    // ── Minecraft 26.x / modern additions ────────────────────────────────────
+
+    /// <summary>1.16.5+ — Hide online players from the server list player count.</summary>
+    public bool HideOnlinePlayers
+    {
+        get => bool.Parse(SettingsDictionary["hide-online-players"]);
+        set => SettingsDictionary["hide-online-players"] = value.ToString().ToLower();
+    }
+
+    /// <summary>1.18+ — Separate simulation distance from render distance.</summary>
+    public int SimulationDistance
+    {
+        get => int.Parse(SettingsDictionary["simulation-distance"]);
+        set => SettingsDictionary["simulation-distance"] = value.ToString();
+    }
+
+    /// <summary>1.19.1+ — URL shown to players in the bug report screen.</summary>
+    public string BugReportLink
+    {
+        get => SettingsDictionary["bug-report-link"];
+        set => SettingsDictionary["bug-report-link"] = value;
+    }
+
+    /// <summary>1.19.4+ — UUID of the resource pack (required for RequireResourcePack enforcement).</summary>
+    public string ResourcePackId
+    {
+        get => SettingsDictionary["resource-pack-id"];
+        set => SettingsDictionary["resource-pack-id"] = value;
+    }
+
+    /// <summary>1.19.4+ — JSON text shown to the player when prompted to accept the resource pack.</summary>
+    public string ResourcePackPrompt
+    {
+        get => SettingsDictionary["resource-pack-prompt"];
+        set => SettingsDictionary["resource-pack-prompt"] = value;
+    }
+
+    /// <summary>1.20.2+ — Whether to log player IPs in the server log.</summary>
+    public bool LogIps
+    {
+        get => bool.Parse(SettingsDictionary["log-ips"]);
+        set => SettingsDictionary["log-ips"] = value.ToString().ToLower();
+    }
+
+    /// <summary>1.20.5+ — Allow incoming player transfers from other servers via /transfer.</summary>
+    public bool AcceptsTransfers
+    {
+        get => bool.Parse(SettingsDictionary["accepts-transfers"]);
+        set => SettingsDictionary["accepts-transfers"] = value.ToString().ToLower();
+    }
+
+    /// <summary>1.21.4+ — Pause simulation when no players are online (0 = disabled).</summary>
+    public int PauseWhenEmptySeconds
+    {
+        get => int.Parse(SettingsDictionary["pause-when-empty-seconds"]);
+        set => SettingsDictionary["pause-when-empty-seconds"] = value.ToString();
+    }
+
+    // ── Unknown / custom properties ────────────────────────────────────────────
+
+    /// <summary>
+    ///     All known server.properties keys that Fork-MCP maps to typed properties.
+    ///     Any key present in <see cref="SettingsDictionary"/> but NOT in this set
+    ///     is exposed via <see cref="UnknownSettings"/>.
+    /// </summary>
+    private static readonly HashSet<string> KnownKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "spawn-protection", "max-tick-time", "query.port", "generator-settings", "force-gamemode",
+        "allow-nether", "enforce-whitelist", "gamemode", "broadcast-console-to-ops", "enable-query",
+        "player-idle-timeout", "difficulty", "spawn-monsters", "broadcast-rcon-to-ops",
+        "op-permission-level", "pvp", "snooper-enabled", "level-type", "hardcore",
+        "enable-command-block", "max-players", "network-compression-threshold", "resource-pack-sha1",
+        "max-world-size", "rcon.port", "server-port", "query.port", "server-ip", "spawn-npcs",
+        "allow-flight", "level-name", "view-distance", "resource-pack", "spawn-animals",
+        "white-list", "rcon.password", "generate-structures", "max-build-height", "rate-limit",
+        "online-mode", "level-seed", "use-native-transport", "prevent-proxy-connections",
+        "enable-rcon", "motd", "sync-chunk-writes", "enable-jmx-monitoring", "enable-status",
+        "require-resource-pack", "entity-broadcast-range-percentage",
+        // 26.x additions
+        "hide-online-players", "simulation-distance", "bug-report-link",
+        "resource-pack-id", "resource-pack-prompt", "log-ips",
+        "accepts-transfers", "pause-when-empty-seconds",
+    };
+
+    /// <summary>
+    ///     Key/value pairs from server.properties that Fork-MCP does not have a
+    ///     typed property for. Editable from the UI; changes go directly into
+    ///     <see cref="SettingsDictionary"/> and are saved on the next write cycle.
+    /// </summary>
+    public IEnumerable<KeyValuePair<string, string>> UnknownSettings =>
+        SettingsDictionary
+            .Where(kv => !KnownKeys.Contains(kv.Key))
+            .OrderBy(kv => kv.Key);
+
+    // ── Unknown properties — observable, two-way bindable ────────────────────
+
+    private ObservableCollection<SettingKeyValuePair> _unknownProperties;
+
+    /// <summary>
+    ///     Observable collection of unknown properties for UI binding.
+    ///     Each item wraps a dictionary entry and allows two-way editing.
+    /// </summary>
+    public ObservableCollection<SettingKeyValuePair> UnknownProperties =>
+        _unknownProperties ??= BuildUnknownProperties();
+
+    /// <summary>Rebuild the observable collection from current dictionary state.</summary>
+    public void RefreshUnknownProperties() =>
+        _unknownProperties = BuildUnknownProperties();
+
+    private ObservableCollection<SettingKeyValuePair> BuildUnknownProperties()
+        => new(SettingsDictionary
+            .Where(kv => !KnownKeys.Contains(kv.Key))
+            .OrderBy(kv => kv.Key)
+            .Select(kv => new SettingKeyValuePair(kv.Key, SettingsDictionary)));
+
     #endregion
+
+    // ── Nested helper ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Wraps a single entry in <see cref="ServerSettings.SettingsDictionary"/>
+    ///     so it can be two-way bound from the Unknown Properties UI section.
+    /// </summary>
+    public sealed class SettingKeyValuePair : INotifyPropertyChanged
+    {
+        private readonly ObservableDictionary<string, string> _dict;
+
+        public SettingKeyValuePair(string key, ObservableDictionary<string, string> dict)
+        {
+            Key = key;
+            _dict = dict;
+        }
+
+        public string Key { get; }
+
+        public string Value
+        {
+            get => _dict.TryGetValue(Key, out string v) ? v : string.Empty;
+            set
+            {
+                _dict[Key] = value ?? string.Empty;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
 }
