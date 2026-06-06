@@ -15,6 +15,7 @@ public class ConsoleReader : IConsoleReader
     public void Read(string line, EntityViewModel source)
     {
         stdIn.WriteLine(line);
+        stdIn.Flush();
         ConsoleWriter.Write(line, source);
     }
 }

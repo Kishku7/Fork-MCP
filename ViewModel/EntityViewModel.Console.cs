@@ -125,6 +125,56 @@ public abstract partial class EntityViewModel
         }
     }
 
+    /// <summary>
+    /// Bulk-loads historical lines into the in-memory scrollback buffer
+    /// (<see cref="consoleOutListNoQuery"/>, capped at MaxConsoleLines) while rendering
+    /// only the last <paramref name="renderLines"/> lines to the console UI.
+    /// Used by the re-attach log backfill — history is for scrollback and search,
+    /// not for replaying onto the screen. Bypasses throttling and per-line dispatch.
+    /// </summary>
+    public void BackfillConsole(IReadOnlyList<ConsoleMessage> messages, int renderLines)
+    {
+        if (messages == null || messages.Count == 0) return;
+
+        lock (this)
+        {
+            try
+            {
+                // Memory buffer: append everything, then trim from the front to the cap.
+                foreach (ConsoleMessage message in messages)
+                    consoleOutListNoQuery.Add(message);
+
+                int overflow = consoleOutListNoQuery.Count - AppSettings.MaxConsoleLines;
+                if (overflow > 0)
+                    consoleOutListNoQuery.RemoveRange(0, overflow);
+
+                lastConsoleMessage = messages[messages.Count - 1];
+
+                // UI: render only the newest renderLines lines, in one dispatcher batch.
+                int renderStart = Math.Max(0, messages.Count - renderLines);
+                var toRender = new List<ConsoleMessage>(messages.Count - renderStart);
+                for (int i = renderStart; i < messages.Count; i++)
+                {
+                    if (messages[i].Content.Contains(currentQuery))
+                        toRender.Add(messages[i]);
+                }
+
+                Application.Current?.Dispatcher?.InvokeAsync(() =>
+                {
+                    foreach (ConsoleMessage message in toRender)
+                        ConsoleOutList.Add(message);
+                }, DispatcherPriority.Background);
+
+                timeSinceLastConsoleMessage.Restart();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error while backfilling console (" + messages.Count + " lines)");
+                ErrorLogger.Append(e);
+            }
+        }
+    }
+
     public void ApplySearchQueryToConsole(string query)
     {
         if (query.Equals(""))

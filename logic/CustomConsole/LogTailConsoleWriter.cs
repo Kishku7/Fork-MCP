@@ -36,6 +36,13 @@ public static class LogTailConsoleWriter
     private const int MaxChunkBytes = 1 << 20; // 1 MiB
 
     /// <summary>
+    /// Max backfill lines rendered to the console UI on re-attach. The full backfill
+    /// (up to MaxConsoleLines) lives in the in-memory scrollback buffer; only this
+    /// many of the newest lines are pushed to the screen.
+    /// </summary>
+    private const int BackfillRenderLines = 100;
+
+    /// <summary>
     /// Starts tailing <paramref name="logFile"/> in the background.
     /// <para>
     /// On start-up, backfills up to <see cref="AppSettings.MaxConsoleLines"/> historical
@@ -86,9 +93,13 @@ public static class LogTailConsoleWriter
                     position = 0;
                 }
 
+                // Last maxLines go to the in-memory scrollback buffer ONLY; just the
+                // tail (≤ BackfillRenderLines) is rendered to the console UI.
                 int startIdx = Math.Max(0, history.Count - maxLines);
+                var backfill = new List<ConsoleMessage>(history.Count - startIdx);
                 for (int i = startIdx; i < history.Count; i++)
-                    viewModel.AddToConsole(new ConsoleMessage(history[i]));
+                    backfill.Add(new ConsoleMessage(history[i]));
+                viewModel.BackfillConsole(backfill, BackfillRenderLines);
 
                 history.Clear(); // release memory before entering the tail loop
 

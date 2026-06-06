@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -155,7 +156,7 @@ public sealed class McpHost : IDisposable
                         .GetBestForMajor(vm.Entity.JavaSettings.PreferredMajorVersion);
                     if (resolved == null)
                     {
-                        issues.Add("No Java installation found — check Java Installations in Fork settings");
+                        issues.Add("No Java installation found ï¿½ check Java Installations in Fork settings");
                     }
                     else if (!File.Exists(resolved.BinaryPath))
                     {
@@ -183,17 +184,21 @@ public sealed class McpHost : IDisposable
                 double memUsedMb  = vm.MemValueRaw / 100.0 * vm.Entity.JavaSettings.MaxRam;
                 int    memMaxMb   = vm.Entity.JavaSettings.MaxRam;
 
-                int? playerCount = vm is ServerViewModel sv ? sv.PlayerList.Count : null;
+                int? onlinePlayers  = vm is ServerViewModel sv1 ? sv1.PlayerList.Count(p => p.IsOnline)  : null;
+                int? offlinePlayers = vm is ServerViewModel sv2 ? sv2.PlayerList.Count(p => !p.IsOnline) : null;
+                int? totalPlayers   = vm is ServerViewModel sv3 ? sv3.PlayerList.Count                   : null;
 
                 serverSnapshots.Add(new
                 {
-                    name          = vm.Name,
-                    status        = vm.CurrentStatus.ToString().ToLowerInvariant(),
-                    uptimeSeconds = serverUptimeSec,
-                    memoryUsedMb  = isRunning ? Math.Round(memUsedMb, 1) : (double?)null,
-                    memoryMaxMb   = memMaxMb,
-                    cpuPercent    = isRunning ? Math.Round(vm.CPUValueRaw, 1) : (double?)null,
-                    players       = playerCount,
+                    name           = vm.Name,
+                    status         = vm.CurrentStatus.ToString().ToLowerInvariant(),
+                    uptimeSeconds  = serverUptimeSec,
+                    memoryUsedMb   = isRunning ? Math.Round(memUsedMb, 1) : (double?)null,
+                    memoryMaxMb    = memMaxMb,
+                    cpuPercent     = isRunning ? Math.Round(vm.CPUValueRaw, 1) : (double?)null,
+                    playersOnline  = onlinePlayers,
+                    playersOffline = offlinePlayers,
+                    playersTotal   = totalPlayers,
                     issues,
                 });
             }

@@ -51,7 +51,10 @@ public class GetStatusTool
         {
             sb.AppendLine($"Type:    {sv.Server.Version.Type}");
             sb.AppendLine($"Version: {sv.Server.Version.Version}");
-            sb.AppendLine($"Players: {sv.PlayerList.Count} online");
+            int online  = sv.PlayerList.Count(p => p.IsOnline);
+            int offline = sv.PlayerList.Count(p => !p.IsOnline);
+            int total   = sv.PlayerList.Count;
+            sb.AppendLine($"Players: {online} online, {offline} offline, {total} total");
             sb.AppendLine($"Port:    {sv.Server.ServerSettings.ServerPort}");
         }
 

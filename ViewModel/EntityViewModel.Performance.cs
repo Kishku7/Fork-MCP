@@ -44,7 +44,9 @@ public abstract partial class EntityViewModel
         diskTracker?.StopThreads();
         diskList = new List<double>();
         diskTracker = new DiskTracker();
-        diskTracker.TrackTotal(p, this);
+        // Pass the entity's directory so disk tracking targets the drive this
+        // server actually writes to (instance resolved per-server at startup).
+        diskTracker.TrackTotal(p, this, System.IO.Path.Combine(App.ServerPath, Entity.Name));
     }
 
     public void CPUValueUpdate(double value)

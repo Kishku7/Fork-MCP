@@ -141,6 +141,7 @@ public sealed class ServerLifecycleManager
             $"-jar server.jar nogui";
 
         Process process = new();
+        Process perfProcess = null; // process to track for CPU/mem/disk — Java itself, not the guard
 
         if (useGuard)
         {
@@ -177,7 +178,33 @@ public sealed class ServerLifecycleManager
                 waited += 100;
             }
             if (!File.Exists(markerFile))
+            {
                 ConsoleWriter.Write("WARN: ForkGuard did not initialise within 10 s — proceeding anyway.", viewModel);
+            }
+            else
+            {
+                // Performance tracking must target the Java child (marker line 2), not the
+                // guard — the guard is a tiny stub, so tracking it shows 0% CPU/memory.
+                try
+                {
+                    string[] markerLines = File.ReadAllLines(markerFile);
+                    if (markerLines.Length >= 2 && int.TryParse(markerLines[1].Trim(), out int javaPid))
+                    {
+                        Process javaProcess = Process.GetProcessById(javaPid);
+                        if (!javaProcess.HasExited &&
+                            javaProcess.ProcessName.StartsWith("java", StringComparison.OrdinalIgnoreCase))
+                        {
+                            perfProcess = javaProcess;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ConsoleWriter.Write(
+                        $"WARN: Could not resolve Java PID for performance tracking — metrics will track the guard process ({ex.Message}).",
+                        viewModel);
+                }
+            }
 
             // ConsoleReader routes commands to ForkGuard's stdin (it forwards to Java).
             viewModel.ConsoleReader = new ConsoleReader(process.StandardInput);
@@ -205,18 +232,29 @@ public sealed class ServerLifecycleManager
         }
 
         // ── Common startup wiring ─────────────────────────────────────────────
-        Task.Run(() => { viewModel.TrackPerformance(process); });
+        Task.Run(() => { viewModel.TrackPerformance(perfProcess ?? process); });
         viewModel.CurrentStatus = ServerStatus.STARTING;
         ConsoleWriter.RegisterApplication(viewModel, process.StandardOutput, process.StandardError);
         ServerAutomationManager.Instance.UpdateAutomation(viewModel);
 
         Task.Run(async () =>
         {
-            await process.WaitForExitAsync();
-            ApplicationManager.Instance.ActiveEntities.Remove(viewModel.Server);
-            viewModel.CurrentStatus = ServerStatus.STOPPED;
-            viewModel.ConsoleReader = null;
-            ServerAutomationManager.Instance.UpdateAutomation(viewModel);
+            try
+            {
+                await process.WaitForExitAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Fork] WaitForExitAsync exception for '{viewModel.Name}': {ex.Message}");
+            }
+            finally
+            {
+                // Always reconcile state — covers normal exits, force-kills, and crashes.
+                ApplicationManager.Instance.ActiveEntities.Remove(viewModel.Server);
+                viewModel.CurrentStatus = ServerStatus.STOPPED;
+                viewModel.ConsoleReader = null;
+                ServerAutomationManager.Instance.UpdateAutomation(viewModel);
+            }
         });
 
         ApplicationManager.Instance.ActiveEntities[viewModel.Server] = process;
