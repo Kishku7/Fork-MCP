@@ -113,6 +113,13 @@ public abstract partial class EntityViewModel : BaseViewModel
     }
 
     public ServerStatus CurrentStatus { get; set; }
+    // True while a stop/kill/restart was intentionally requested, so the exit handler
+    // can tell a clean shutdown apart from an unexpected crash.
+    public bool StopRequested { get; set; }
+    // Set when the last process exit was an unexpected crash (non-zero exit / watchdog),
+    // not a clean stop. Reset on next start. Surfaced by get_status + the crash alert.
+    public bool CrashedLastExit { get; set; }
+    public string LastExitInfo { get; set; }
     public bool ServerRunning => CurrentStatus == ServerStatus.RUNNING;
     public string AddressInfo { get; set; }
     public string PrivateAddressInfo { get; set; }
@@ -162,6 +169,8 @@ public abstract partial class EntityViewModel : BaseViewModel
     {
         get
         {
+            if (CrashedLastExit && CurrentStatus == ServerStatus.STOPPED)
+                return (Brush)new BrushConverter().ConvertFromString("#ED5E5E");
             return CurrentStatus switch
             {
                 ServerStatus.RUNNING => (Brush)new BrushConverter().ConvertFromString("#5EED80"),
@@ -176,6 +185,8 @@ public abstract partial class EntityViewModel : BaseViewModel
     {
         get
         {
+            if (CrashedLastExit && CurrentStatus == ServerStatus.STOPPED)
+                return (Brush)new BrushConverter().ConvertFromString("#ED5E5E");
             return CurrentStatus switch
             {
                 ServerStatus.RUNNING => (Brush)new BrushConverter().ConvertFromString("#5EED80"),

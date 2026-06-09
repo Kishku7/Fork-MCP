@@ -41,6 +41,9 @@ public sealed class ServerLifecycleManager
 
     public async Task<bool> StartServerAsync(ServerViewModel viewModel)
     {
+        viewModel.StopRequested = false;
+        viewModel.CrashedLastExit = false;
+        viewModel.LastExitInfo = null;
         ConsoleWriter.Write("\n", viewModel);
         ConsoleWriter.Write("Saving settings files before starting server ...", viewModel);
         await Task.Run(async () => await viewModel.SettingsSavingTask);
@@ -251,6 +254,7 @@ public sealed class ServerLifecycleManager
             {
                 // Always reconcile state — covers normal exits, force-kills, and crashes.
                 ApplicationManager.Instance.ActiveEntities.Remove(viewModel.Server);
+                EvaluateExit(viewModel, process, System.IO.Path.Combine(App.ServerPath, viewModel.Server.Name));
                 viewModel.CurrentStatus = ServerStatus.STOPPED;
                 viewModel.ConsoleReader = null;
                 ServerAutomationManager.Instance.UpdateAutomation(viewModel);
@@ -359,6 +363,7 @@ public sealed class ServerLifecycleManager
                 await javaProcess.WaitForExitAsync();
                 PeriodicSyncService.Stop(viewModel);
                 ApplicationManager.Instance.ActiveEntities.Remove(viewModel.Server);
+                EvaluateExit(viewModel, javaProcess, serverPath);
                 viewModel.CurrentStatus = ServerStatus.STOPPED;
                 viewModel.ConsoleReader = null;
                 ServerAutomationManager.Instance.UpdateAutomation(viewModel);
@@ -385,6 +390,7 @@ public sealed class ServerLifecycleManager
 
     public void StopServer(ServerViewModel serverViewModel)
     {
+        serverViewModel.StopRequested = true;
         if (serverViewModel.ConsoleReader != null)
         {
             // Routes to ForkGuard stdin (normal) or named pipe (re-attached).
@@ -426,6 +432,7 @@ public sealed class ServerLifecycleManager
 
     public bool KillEntity(EntityViewModel entityViewModel)
     {
+        entityViewModel.StopRequested = true;
         Process process = ApplicationManager.Instance.ActiveEntities[entityViewModel.Entity];
         try
         {
@@ -479,5 +486,74 @@ public sealed class ServerLifecycleManager
             Console.WriteLine(e);
             return false;
         }
+    }
+
+    // --- Crash detection ---
+    // Classifies a process exit as a clean stop or an unexpected crash and records it on the
+    // view model. Crash = exit was NOT user-requested AND the JVM returned a non-zero exit code
+    // (Minecraft watchdog halts non-zero) or left a fresh crash report / watchdog log line.
+    // Raises a loud console alert so a crash is never silently shown as a plain "Stopped".
+    private static void EvaluateExit(EntityViewModel viewModel, Process process, string serverPath)
+    {
+        try
+        {
+            if (viewModel.StopRequested) return; // intentional stop / kill / restart
+
+            int? exitCode = null;
+            try { if (process != null && process.HasExited) exitCode = process.ExitCode; } catch { }
+
+            string crashReport = FindRecentCrashReport(serverPath);
+            bool watchdog = LogTailHasWatchdog(serverPath);
+            bool crashed = (exitCode.HasValue && exitCode.Value != 0) || crashReport != null || watchdog;
+            if (!crashed) return;
+
+            string reason = "exit code " + (exitCode.HasValue ? exitCode.Value.ToString() : "unknown");
+            if (watchdog) reason += ", server watchdog (tick stall)";
+            if (crashReport != null) reason += ", crash report: " + Path.GetFileName(crashReport);
+
+            viewModel.CrashedLastExit = true;
+            viewModel.LastExitInfo = reason;
+            ConsoleWriter.Write(new ConsoleMessage(
+                "[CRASH] Server crashed: " + reason + ". This was NOT a clean stop.",
+                ConsoleMessage.MessageLevel.ERROR), viewModel);
+            Console.WriteLine($"[Fork] CRASH detected for '{viewModel.Name}': {reason}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Fork] EvaluateExit error for '{viewModel.Name}': {ex.Message}");
+        }
+    }
+
+    private static string FindRecentCrashReport(string serverPath)
+    {
+        try
+        {
+            string dir = Path.Combine(serverPath, "crash-reports");
+            if (!Directory.Exists(dir)) return null;
+            FileInfo newest = null;
+            foreach (var f in new DirectoryInfo(dir).GetFiles("crash-*.txt"))
+                if (newest == null || f.LastWriteTimeUtc > newest.LastWriteTimeUtc) newest = f;
+            if (newest != null && (DateTime.UtcNow - newest.LastWriteTimeUtc).TotalMinutes <= 3)
+                return newest.FullName;
+        }
+        catch { }
+        return null;
+    }
+
+    private static bool LogTailHasWatchdog(string serverPath)
+    {
+        try
+        {
+            string log = Path.Combine(serverPath, "logs", "latest.log");
+            if (!File.Exists(log)) return false;
+            using var fs = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            long start = Math.Max(0, fs.Length - 16384);
+            fs.Seek(start, SeekOrigin.Begin);
+            using var sr = new StreamReader(fs);
+            string tail = sr.ReadToEnd();
+            return tail.Contains("forcibly shutdown") || tail.Contains("Considering it to be crashed")
+                   || tail.Contains("This crash report has been saved");
+        }
+        catch { return false; }
     }
 }

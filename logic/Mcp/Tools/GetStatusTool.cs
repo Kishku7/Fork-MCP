@@ -42,6 +42,8 @@ public class GetStatusTool
         var sb = new StringBuilder();
         sb.AppendLine($"Server:  {vm.Name}");
         sb.AppendLine($"Status:  {FormatStatus(current)}");
+        if (vm.CrashedLastExit)
+            sb.AppendLine($"Crashed: YES - last exit was a crash, not a clean stop ({vm.LastExitInfo})");
         sb.AppendLine($"Time:    {FormatElapsed(elapsed)}");
         sb.AppendLine($"CPU:     {vm.CPUValue}");
         sb.AppendLine($"Memory:  {vm.MemValue}");
