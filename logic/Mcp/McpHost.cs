@@ -58,6 +58,7 @@ public sealed class McpHost : IDisposable
             .WithTools<ListServersTool>()
             .WithTools<StartServerTool>()
             .WithTools<StopServerTool>()
+            .WithTools<ExitForkTool>()
             .WithTools<RestartServerTool>()
             .WithTools<SendCommandTool>()
             .WithTools<GetConsoleTool>()
