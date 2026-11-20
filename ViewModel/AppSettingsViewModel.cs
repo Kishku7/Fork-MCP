@@ -35,7 +35,21 @@ public class AppSettingsViewModel : BaseViewModel
 
         MainViewModel = mainViewModel;
         AppSettingsPage = new AppSettingsPage(this);
-        Supporters = new ObservableCollection<string>(new APIController().GetSupporters());
+        // The supporters list is a web call (api.Fork.gg, currently failing with 500). It used to run
+        // right here and held up application start-up for the whole request; load it in the background.
+        Supporters = new ObservableCollection<string>();
+        Task.Run(() =>
+        {
+            try
+            {
+                ObservableCollection<string> loaded = new(new APIController().GetSupporters());
+                Application.Current?.Dispatcher?.InvokeAsync(() => { Supporters = loaded; });
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Append(e);
+            }
+        });
     }
 
     public AppSettings AppSettings => AppSettingsSerializer.Instance.AppSettings;

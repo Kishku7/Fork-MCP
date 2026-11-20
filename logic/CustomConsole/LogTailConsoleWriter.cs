@@ -68,38 +68,33 @@ public static class LogTailConsoleWriter
 
             try
             {
-                int maxLines = AppSettingsSerializer.Instance.AppSettings.MaxConsoleLines;
+                int maxLines = viewModel.ConsoleWindowLines;
 
-                // ── Step 1: Backfill historical lines ─────────────────────────────
-                // Read the whole file and display the last maxLines entries so the
-                // user can see recent output without replaying the full log through
-                // the event pipeline.  Record the byte offset we have consumed up to
-                // so the tail loop resumes from exactly there.
+                // ── Step 1: Backfill recent lines ─────────────────────────────────
+                // Read only the last maxLines lines from the END of the file (never the
+                // whole file) and record the byte offset consumed so the tail loop
+                // resumes from exactly there. Older lines stay on disk and are paged in
+                // when the user scrolls back.
                 long position = 0;
-                var history = new List<string>();
+                long firstLineOffset = -1;
+                List<string> history;
                 try
                 {
-                    using var backfillFs = new FileStream(logFile, FileMode.Open, FileAccess.Read,
-                        FileShare.ReadWrite | FileShare.Delete);
-                    using var backfillReader = new StreamReader(backfillFs);
-                    string? bl;
-                    while ((bl = backfillReader.ReadLine()) != null)
-                        history.Add(bl);
-                    position = backfillFs.Length; // resume tailing from current EOF
+                    history = LogHistoryReader.ReadLastLines(logFile, maxLines, out position, out firstLineOffset);
                 }
                 catch
                 {
                     // File vanished or locked mid-read — skip backfill, start from 0.
+                    history = new List<string>();
                     position = 0;
+                    firstLineOffset = -1;
                 }
 
-                // Last maxLines go to the in-memory scrollback buffer ONLY; just the
-                // tail (≤ BackfillRenderLines) is rendered to the console UI.
-                int startIdx = Math.Max(0, history.Count - maxLines);
-                var backfill = new List<ConsoleMessage>(history.Count - startIdx);
-                for (int i = startIdx; i < history.Count; i++)
-                    backfill.Add(new ConsoleMessage(history[i]));
-                viewModel.BackfillConsole(backfill, BackfillRenderLines);
+                // Only the tail (≤ BackfillRenderLines) is rendered to the console UI.
+                var backfill = new List<ConsoleMessage>(history.Count);
+                foreach (string historyLine in history)
+                    backfill.Add(new ConsoleMessage(historyLine));
+                viewModel.BackfillConsole(backfill, BackfillRenderLines, firstLineOffset);
 
                 history.Clear(); // release memory before entering the tail loop
 

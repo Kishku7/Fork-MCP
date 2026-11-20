@@ -5,7 +5,20 @@ namespace Fork.Logic.Model;
 public class AppSettings
 {
     public string ServerPath { get; set; } = Path.Combine(App.ApplicationPath, "servers");
+    /// <summary>
+    /// Hard cap on console lines held in memory while the user has scrolled back through history,
+    /// and the cap for consoles that have no log file to page from (proxy networks).
+    /// </summary>
     public int MaxConsoleLines { get; set; } = 100_000;
+
+    /// <summary>
+    /// Lines a server console keeps in memory while it follows the live output. Anything older
+    /// stays on disk (logs\latest.log) and is loaded when the user scrolls back to the top.
+    /// </summary>
+    public int ConsoleMemoryLines { get; set; } = 2_000;
+
+    /// <summary>Lines loaded from disk each time the user scrolls back to the top of the console.</summary>
+    public int ConsoleHistoryChunkLines { get; set; } = 500;
     public int MaxConsoleLinesPerSecond { get; set; } = 10;
 
     /// <summary>

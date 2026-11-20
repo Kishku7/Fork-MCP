@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Fork.Logic.Logging;
 using Fork.Logic.Model.PluginModels;
 using Fork.Logic.Model.ServerConsole;
@@ -75,10 +76,15 @@ public static class ExtensionMethods
     public static void Sort<T>(this ObservableCollection<T> collection)
         where T : IComparable<T>, IEquatable<T>
     {
-        List<T> sorted = collection.OrderBy(x => x).ToList();
+        // Application.Current is null once the app is shutting down. Callers (player join/leave
+        // handling) can still be mid-flight at that point; there is nothing left to sort for.
+        Dispatcher? dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownStarted) return;
 
-        Application.Current.Dispatcher?.Invoke(() =>
+        dispatcher.Invoke(() =>
         {
+            // Sorted on the UI thread, where the collection is safe to read and move.
+            List<T> sorted = collection.OrderBy(x => x).ToList();
             int ptr = 0;
             while (ptr < sorted.Count - 1)
             {

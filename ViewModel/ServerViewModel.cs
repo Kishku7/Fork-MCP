@@ -107,6 +107,10 @@ public class ServerViewModel : EntityViewModel
 
     public Server Server => Entity as Server;
 
+    /// <summary>The server's own log, which older console lines are paged in from.</summary>
+    protected override string? ConsoleHistoryFile =>
+        Server == null ? null : System.IO.Path.Combine(App.ServerPath, Server.Name, "logs", "latest.log");
+
     public bool Initialized { get; set; }
 
     public string NextAutomationName { get; set; }

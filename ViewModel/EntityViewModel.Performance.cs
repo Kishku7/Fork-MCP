@@ -51,6 +51,7 @@ public abstract partial class EntityViewModel
 
     public void CPUValueUpdate(double value)
     {
+        string before = CPUValue;
         try
         {
             cpuList.Add(value);
@@ -62,12 +63,15 @@ public abstract partial class EntityViewModel
             // Ignored: rare collection-modified exception under concurrent updates
         }
 
+        // The UI shows whole percents; skip the notification when nothing visible changed.
+        if (CPUValue == before) return;
         raisePropertyChanged(nameof(CPUValue));
         raisePropertyChanged(nameof(CPUValueRaw));
     }
 
     public void MemValueUpdate(double value)
     {
+        string before = MemValue;
         memList.Add(value);
         if (memList.Count > 3) memList.RemoveAt(0);
         try
@@ -79,12 +83,14 @@ public abstract partial class EntityViewModel
             // Ignored: rare collection-modified exception under concurrent updates
         }
 
+        if (MemValue == before) return;
         raisePropertyChanged(nameof(MemValue));
         raisePropertyChanged(nameof(MemValueRaw));
     }
 
     public void DiskValueUpdate(double value)
     {
+        string before = DiskValue;
         diskList.Add(value);
         if (diskList.Count > 3) diskList.RemoveAt(0);
         try
@@ -96,6 +102,7 @@ public abstract partial class EntityViewModel
             // Ignored: rare collection-modified exception under concurrent updates
         }
 
+        if (DiskValue == before) return;
         raisePropertyChanged(nameof(DiskValue));
         raisePropertyChanged(nameof(DiskValueRaw));
     }

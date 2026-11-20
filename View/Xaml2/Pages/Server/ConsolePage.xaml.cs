@@ -24,6 +24,9 @@ public partial class ConsolePage : Page
         PlayerToWhitelist.KeyDown += HandleKeyDownText;
 
         KeyDown += OnPageKeyDown;
+
+        // Nobody is reading history once the page is gone, so let the buffer shrink back to its window.
+        Unloaded += (_, _) => this.viewModel.SetConsolePinnedToBottom(true);
     }
 
     private void Player_Ban(object sender, RoutedEventArgs e)
@@ -175,6 +178,27 @@ public partial class ConsolePage : Page
             // New content arrived and auto-scroll is on — scroll to bottom
             scrollViewer.ScrollToVerticalOffset(scrollViewer.ExtentHeight);
         }
+
+        // Old lines are only discarded from memory while the console is following the newest line.
+        viewModel.SetConsolePinnedToBottom(AutoScroll);
+
+        // User scrolled to the very top: page older lines in from the log file.
+        if (e.ExtentHeightChange == 0 && !AutoScroll && scrollViewer.VerticalOffset == 0 &&
+            scrollViewer.ScrollableHeight > 0)
+        {
+            _ = LoadOlderLinesAsync(scrollViewer);
+        }
+    }
+
+    private async Task LoadOlderLinesAsync(ScrollViewer scrollViewer)
+    {
+        int added = await viewModel.LoadOlderConsoleLines(viewModel.AppSettings.ConsoleHistoryChunkLines);
+        if (added <= 0) return;
+
+        // The list scrolls by item, so offset == index of the first visible line. Moving to
+        // `added` keeps the line the user was reading at the top instead of jumping to the new lines.
+        await Dispatcher.InvokeAsync(() => scrollViewer.ScrollToVerticalOffset(added),
+            System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     #endregion autoscrolling
